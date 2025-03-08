@@ -1,0 +1,32 @@
+/* In your CSS file, e.g., SearchVisualizer.css */
+.grid-container {
+    display: grid;
+    gap: 1px;
+    background-color: #222; /* grid lines color */
+  }
+  
+  .cell {
+    width: 100%;
+    height: 100%;
+  }
+  
+  .empty {
+    background-color: #fff;
+  }
+  
+  .start {
+    background-color: green;
+  }
+  
+  .end {
+    background-color: red;
+  }
+  
+  .visited {
+    background-color: #3498db;
+  }
+  
+  .path {
+    background-color: yellow;
+  }
+  

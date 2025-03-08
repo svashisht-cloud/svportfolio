@@ -1,0 +1,43 @@
+/* SnakeGame.css */
+.snake-game-container {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  height: 100%;
+  position: relative;
+}
+
+.board {
+  display: grid;
+  grid-template-rows: repeat(18, 1fr);
+  grid-template-columns: repeat(18, 1fr);
+  gap: 1px;
+  color: black;
+  background-color: #444;
+  width: 80vmin;
+  height: 80vmin;
+  overflow: hidden;
+  position: relative;
+}
+
+.head {
+  background-color: #1abc9c;
+  border: 1px solid #16a085;
+}
+
+.snake {
+  background-color: #2ecc71;
+  border: 1px solid #27ae60;
+}
+
+.food {
+  background-color: #e74c3c;
+  border: 1px solid #c0392b;
+}
+
+.scoreboard {
+  margin-top: 1rem;
+  font-size: 1.5rem;
+  color: #fff;
+}
