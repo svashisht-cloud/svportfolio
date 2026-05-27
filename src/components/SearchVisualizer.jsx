@@ -372,7 +372,7 @@ const SearchVisualizer = () => {
         </select>
         <button
           onClick={() => setShowHelp(true)}
-          className="ml-4 px-4 py-2 bg-gray-600 text-white rounded hover:bg-gray-700"
+          className="ml-4 px-4 py-2 bg-[var(--surface-raised)] text-[var(--foreground)] border border-[var(--border)] rounded hover:bg-[var(--border)] transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--accent)] focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--background)]"
         >
           Help
         </button>
@@ -401,30 +401,35 @@ const SearchVisualizer = () => {
         <button
           onClick={startSearch}
           disabled={isSearching || !startNode || !endNode}
-          className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 disabled:opacity-50"
+          className="px-4 py-2 bg-[var(--accent)] text-[#161616] font-semibold rounded hover:bg-[var(--accent-hover)] disabled:opacity-50 disabled:cursor-not-allowed transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--accent)] focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--background)]"
         >
           Start Search
         </button>
         <button
           onClick={resetGrid}
-          className="ml-4 px-4 py-2 bg-gray-600 text-white rounded hover:bg-gray-700"
+          className="ml-4 px-4 py-2 bg-[var(--surface-raised)] text-[var(--foreground)] border border-[var(--border)] rounded hover:bg-[var(--border)] transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--accent)] focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--background)]"
         >
           Reset Grid
         </button>
+        {(!startNode || !endNode) && !isSearching && (
+          <p className="mt-1 text-xs text-[var(--muted)]">
+            {!startNode ? "Left-click a cell to set start" : "Right-click a cell to set end"}
+          </p>
+        )}
       </div>
       {showHelp && (
-        <div className="fixed inset-0 flex items-center justify-center bg-black bg-opacity-30 z-50">
-          <div className="bg-white p-6 rounded-lg max-w-md w-full mx-4 text-gray-900">
+        <div className="fixed inset-0 flex items-center justify-center bg-black/50 z-50">
+          <div className="bg-[var(--surface-raised)] border border-[var(--border)] p-6 rounded-lg max-w-md w-full mx-4 text-[var(--foreground)]">
             <h2 className="text-xl font-bold mb-4">Instructions</h2>
-            <p className="mb-2">
-              <strong>Desktop:</strong> Left-click on a cell to set the start node and right-click to set the target node.
+            <p className="mb-2 text-[var(--muted)]">
+              <strong className="text-[var(--foreground)]">Desktop:</strong> Left-click a cell to set the start node; right-click to set the target.
             </p>
-            <p className="mb-2">
-              <strong>Mobile:</strong> The first touch sets the start node, the second sets the target node. Subsequent touches alternate between updating the start and target.
+            <p className="mb-2 text-[var(--muted)]">
+              <strong className="text-[var(--foreground)]">Mobile:</strong> First touch sets start, second sets target. Subsequent touches alternate.
             </p>
             <button
               onClick={() => setShowHelp(false)}
-              className="mt-4 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded"
+              className="mt-4 px-4 py-2 bg-[var(--accent)] hover:bg-[var(--accent-hover)] text-[#161616] font-semibold rounded transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--accent)] focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--surface-raised)]"
             >
               Close
             </button>

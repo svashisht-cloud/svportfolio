@@ -13,8 +13,7 @@
   grid-template-rows: repeat(18, 1fr);
   grid-template-columns: repeat(18, 1fr);
   gap: 1px;
-  color: black;
-  background-color: #444;
+  background-color: var(--surface-raised);
   width: 80vmin;
   height: 80vmin;
   overflow: hidden;
@@ -22,22 +21,22 @@
 }
 
 .head {
-  background-color: #1abc9c;
-  border: 1px solid #16a085;
+  background-color: var(--accent);
+  border: 1px solid var(--accent-hover);
 }
 
 .snake {
-  background-color: #2ecc71;
-  border: 1px solid #27ae60;
+  background-color: var(--accent-secondary);
+  border: 1px solid var(--accent);
 }
 
 .food {
-  background-color: #e74c3c;
-  border: 1px solid #c0392b;
+  background-color: var(--error);
+  border: 1px solid #e05555;
 }
 
 .scoreboard {
   margin-top: 1rem;
   font-size: 1.5rem;
-  color: #fff;
+  color: var(--foreground);
 }

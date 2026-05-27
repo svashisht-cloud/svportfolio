@@ -1,7 +1,11 @@
 "use client";
 import React, { useState } from "react";
 import Image from "next/image";
-import { FaUserAlt, FaLinkedin, FaGithub, FaYoutube, FaFileDownload, FaEnvelope } from "react-icons/fa";
+import { FaLinkedin, FaGithub, FaYoutube, FaFileDownload, FaEnvelope } from "react-icons/fa";
+
+const FOCUS = "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--accent)] focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--background)]";
+const BTN_PRIMARY = `px-4 py-2 bg-gradient-to-br from-[var(--accent)] to-[var(--accent-hover)] hover:opacity-90 text-[#161616] font-semibold rounded-lg transition motion-reduce:transition-none ${FOCUS}`;
+const BTN_SECONDARY = `px-4 py-2 bg-[var(--surface-raised)] border border-[var(--border)] hover:bg-[var(--border)] text-[var(--foreground)] rounded-lg transition motion-reduce:transition-none ${FOCUS}`;
 
 const LandingSection = ({ setIsMenuOpen }) => {
   const [showAboutMe, setShowAboutMe] = useState(false);
@@ -11,10 +15,12 @@ const LandingSection = ({ setIsMenuOpen }) => {
   const [showEducation, setShowEducation] = useState(false);
 
   return (
-    <div className="relative w-full sm:w-4/5 h-[70vh] overflow-hidden bg-gray-900 rounded-lg p-4">
+    <div className="relative w-full sm:w-4/5 h-[70vh] overflow-hidden bg-[var(--surface)] border border-[var(--border)] rounded-xl p-4 shadow-[var(--shadow-md)]">
+      {/* Top edge accent glow */}
+      <div className="absolute top-0 left-0 right-0 h-px bg-gradient-to-r from-transparent via-[var(--accent)]/40 to-transparent z-10" />
       {/* Landing Content */}
       <div
-        className={`absolute inset-0 transition-transform duration-500 ease-in-out flex flex-col items-center justify-center ${
+        className={`absolute inset-0 transition-transform duration-500 ease-in-out flex flex-col items-center justify-center motion-reduce:transition-none ${
           showAboutMe || showSocials || showExperience || showEducation
             ? "-translate-x-full"
             : "translate-x-0"
@@ -22,35 +28,36 @@ const LandingSection = ({ setIsMenuOpen }) => {
       >
         <Image
           src="/images/personal.png"
-          alt="Landing"
+          alt=""
           width={200}
           height={300}
           className="w-32 sm:w-48 rounded-full object-cover mx-auto mt-2"
         />
-        <h1 className="text-white text-center font-bold text-2xl sm:text-4xl mt-6 mx-4">
+        <h1 className="text-[var(--foreground)] text-center font-bold text-2xl sm:text-4xl mt-6 mx-4">
           Hey, my name is Shubh.
         </h1>
-        <p className="text-gray-300 mt-3 text-center mx-4 text-sm sm:text-base">
-          I'm a software, web, and robotics developer with a passion for creating innovative solutions.
+        <p className="text-[var(--muted)] mt-3 text-center mx-4 text-sm sm:text-base">
+          Software engineer building AI products, distributed systems, and robotics platforms.
         </p>
+        <div className="mt-3 flex flex-col sm:flex-row items-center sm:gap-3 gap-1 text-xs text-[var(--muted)] text-center">
+          <span>Full Stack Software</span>
+          <span className="hidden sm:inline text-[var(--border)]">·</span>
+          <span>AI products shipped</span>
+          <span className="hidden sm:inline text-[var(--border)]">·</span>
+          <span>Distributed systems</span>
+        </div>
         <div className="mt-4 flex flex-col items-center">
-          <div className="flex space-x-4">
-            <button
-              onClick={() => setShowAboutMe(true)}
-              className="px-4 py-2 bg-blue-800 hover:bg-blue-900 text-white rounded"
-            >
+          <div className="flex space-x-3">
+            <button onClick={() => setShowAboutMe(true)} className={BTN_PRIMARY}>
               About Me
             </button>
-            <button
-              onClick={() => setShowSocials(true)}
-              className="px-4 py-2 bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700 text-white rounded"
-            >
+            <button onClick={() => setShowSocials(true)} className={BTN_SECONDARY}>
               Socials
             </button>
           </div>
           <button
             onClick={() => setIsMenuOpen(true)}
-            className="mt-4 px-4 py-2 lg:hidden bg-gray-800 hover:bg-gray-900 text-white rounded"
+            className={`mt-4 lg:hidden ${BTN_SECONDARY}`}
           >
             Explore Projects
           </button>
@@ -59,53 +66,44 @@ const LandingSection = ({ setIsMenuOpen }) => {
 
       {/* About Me Overlay */}
       <div
-        className={`absolute inset-0 transition-transform duration-500 ease-in-out flex items-center justify-center ${
+        className={`absolute inset-0 transition-transform duration-500 ease-in-out flex items-center justify-center motion-reduce:transition-none ${
           showAboutMe && !showExperience && !showEducation
             ? "translate-x-0"
             : "translate-x-full"
         }`}
       >
-        <div className="bg-gray-900 p-6 rounded-lg max-w-md w-full">
-          <h2 className="text-white text-2xl font-bold mb-4 text-center">
+        <div className="bg-[var(--surface-raised)] border border-[var(--border)] p-6 rounded-xl max-w-md w-full">
+          <h2 className="text-[var(--foreground)] text-2xl font-bold mb-3 text-center">
             About Me
           </h2>
-          <div className="w-full text-left">
-            <p className="text-gray-300 mb-2">
-              <strong>Name:</strong> Shubh Vashisht
-            </p>
-            <p className="text-gray-300 mb-2">
-              <strong>Year Born:</strong> 2000
-            </p>
-            <p className="text-gray-300 mb-2">
-              <strong>Eye Color:</strong> Brown
-            </p>
-            <p className="text-gray-300 mb-2">
-              <strong>Max Bench:</strong> 135 lbs
-            </p>
-            <p className="text-gray-300 mb-2">
-              <strong>Favourite Movie:</strong> The Matrix, Rush Hour
-            </p>
-          </div>
-          <div className="w-[3/4] flex justify-center space-x-4 mt-4">
-           
-            <button
-              onClick={() => setShowExperience(true)}
-              className="px-4 py-2 bg-green-600 hover:bg-green-700 text-white rounded"
-            >
+          {/* Professional proof — leads */}
+          <p className="text-[var(--muted)] text-sm leading-relaxed mb-4">
+            Software engineer with 4+ years building production systems across AI, distributed robotics platforms, and full-stack web. I focus on developer tools, language model applications, and real-time infrastructure.
+          </p>
+          <div className="flex justify-center space-x-3 mb-4">
+            <button onClick={() => setShowExperience(true)} className={BTN_PRIMARY}>
               Experience
             </button>
-            <button
-              onClick={() => setShowEducation(true)}
-              className="px-4 py-2 bg-purple-600 hover:bg-purple-700 text-white rounded"
-            >
+            <button onClick={() => setShowEducation(true)} className={BTN_SECONDARY}>
               Education
             </button>
           </div>
-          <div className="w-[3/4] flex space-x-4 mt-4">
-            <button
-              onClick={() => setShowAboutMe(false)}
-              className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded"
-            >
+          {/* Quick facts — secondary, clearly separated */}
+          <div className="border-t border-[var(--border)] pt-3 space-y-1">
+            <p className="text-[10px] uppercase tracking-wider text-[var(--text-dim)] mb-2">Quick facts</p>
+            {[
+              ["Born", "2000"],
+              ["Eyes", "Brown"],
+              ["Bench", "135 lbs"],
+              ["Movies", "The Matrix, Rush Hour"],
+            ].map(([k, v]) => (
+              <p key={k} className="text-xs text-[var(--muted)]">
+                <span className="text-[var(--text-dim)]">{k}</span> · {v}
+              </p>
+            ))}
+          </div>
+          <div className="mt-4">
+            <button onClick={() => setShowAboutMe(false)} className={BTN_SECONDARY}>
               Back
             </button>
           </div>
@@ -114,30 +112,30 @@ const LandingSection = ({ setIsMenuOpen }) => {
 
       {/* Experience Overlay */}
       <div
-        className={`absolute inset-0 transition-transform duration-500 ease-in-out flex items-center justify-center ${
+        className={`absolute inset-0 transition-transform duration-500 ease-in-out flex items-center justify-center motion-reduce:transition-none ${
           showExperience ? "translate-x-0" : "translate-x-full"
         }`}
       >
-        <div className="bg-gray-900 p-6 rounded-lg max-w-md w-full">
-          <h2 className="text-white text-2xl font-bold mb-4 text-center">
+        <div className="bg-[var(--surface-raised)] border border-[var(--border)] p-6 rounded-xl max-w-md w-full">
+          <h2 className="text-[var(--foreground)] text-2xl font-bold mb-4 text-center">
             Experience
           </h2>
           <div className="w-full text-left">
             <Image
               src="/images/outrider.jpeg"
-              alt="Experience"
+              alt="Outrider company logo"
               width={150}
               height={150}
-              className="mx-auto mb-4 rounded"
+              className="mx-auto mb-4 rounded-lg"
+              style={{ height: "auto" }}
             />
-            <p className="text-gray-300">
-              {/* Replace with your actual experience details */}
-              I have over 3 years of experience working on cutting-edge software development projects, specializing in scalable web applications and innovative robotics solutions.
+            <p className="text-[var(--muted)] leading-relaxed text-sm">
+              Over 3 years building production software — from AI-powered web products to distributed robotics platform systems. Specializing in real-time infrastructure, developer tooling, and full-stack development.
             </p>
           </div>
           <button
             onClick={() => setShowExperience(false)}
-            className="mt-4 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded self-center"
+            className={`mt-5 ${BTN_SECONDARY}`}
           >
             Back
           </button>
@@ -146,30 +144,30 @@ const LandingSection = ({ setIsMenuOpen }) => {
 
       {/* Education Overlay */}
       <div
-        className={`absolute inset-0 transition-transform duration-500 ease-in-out flex items-center justify-center ${
+        className={`absolute inset-0 transition-transform duration-500 ease-in-out flex items-center justify-center motion-reduce:transition-none ${
           showEducation ? "translate-x-0" : "translate-x-full"
         }`}
       >
-        <div className="bg-gray-900 p-6 rounded-lg max-w-md w-full">
-          <h2 className="text-white text-2xl font-bold mb-4 text-center">
+        <div className="bg-[var(--surface-raised)] border border-[var(--border)] p-6 rounded-xl max-w-md w-full">
+          <h2 className="text-[var(--foreground)] text-2xl font-bold mb-4 text-center">
             Education
           </h2>
           <div className="w-full text-left">
             <Image
               src="/images/umass.png"
-              alt="Education"
+              alt="UMass Amherst logo"
               width={150}
               height={150}
-              className="mx-auto mb-4 rounded"
+              className="mx-auto mb-4 rounded-lg"
+              style={{ height: "auto" }}
             />
-            <p className="text-gray-300">
-              {/* Replace with your actual education details */}
-              I earned a Bachelor's in Computer Science from the University of Massachusetts, Amherst, basically the Hogwarts of coding, where I learned to turn caffeine into code and mastered the magical arts of software engineering.
+            <p className="text-[var(--muted)] leading-relaxed text-sm">
+              Bachelor&apos;s in Computer Science from the University of Massachusetts, Amherst — where I learned to build things that actually work, preferably on the first try.
             </p>
           </div>
           <button
             onClick={() => setShowEducation(false)}
-            className="mt-4 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded self-center"
+            className={`mt-5 ${BTN_SECONDARY}`}
           >
             Back
           </button>
@@ -178,125 +176,81 @@ const LandingSection = ({ setIsMenuOpen }) => {
 
       {/* Socials Overlay */}
       <div
-        className={`absolute inset-0 transition-transform duration-500 ease-in-out flex items-center justify-center ${
+        className={`absolute inset-0 transition-transform duration-500 ease-in-out flex items-center justify-center motion-reduce:transition-none ${
           showSocials ? "translate-x-0" : "translate-x-full"
         }`}
       >
-        <div className="bg-gray-900 p-6 rounded-lg max-w-md w-full">
-          <h2 className="text-white text-2xl font-bold mb-4 text-center">
+        <div className="bg-[var(--surface-raised)] border border-[var(--border)] p-6 rounded-xl max-w-md w-full">
+          <h2 className="text-[var(--foreground)] text-2xl font-bold mb-4 text-center">
             Socials
           </h2>
-          <div className="flex flex-col space-y-4">
+          <div className="flex flex-col space-y-3">
             <button
-                onClick={() =>
-                window.open("https://www.linkedin.com/in/shubh-vashisht/", "_blank")
-                }
-                className="flex items-center justify-center space-x-2 px-4 py-2 bg-blue-800 hover:bg-blue-900 text-white rounded"
+              onClick={() => window.open("https://www.linkedin.com/in/shubh-vashisht/", "_blank")}
+              className={`flex items-center justify-center space-x-2 ${BTN_PRIMARY}`}
             >
-                <FaLinkedin className="w-6 h-6" />
-                <span>LinkedIn</span>
+              <FaLinkedin className="w-5 h-5" />
+              <span>LinkedIn</span>
             </button>
             <button
-                onClick={() =>
-                window.open("https://github.com/shubh-vashisht", "_blank")
-                }
-                className="flex items-center justify-center space-x-2 px-4 py-2 bg-gray-800 hover:bg-blue-900 text-white rounded"
+              onClick={() => window.open("https://github.com/shubh-vashisht", "_blank")}
+              className={`flex items-center justify-center space-x-2 ${BTN_SECONDARY}`}
             >
-                <FaGithub className="w-6 h-6" />
-                <span>Github</span>
+              <FaGithub className="w-5 h-5" />
+              <span>GitHub</span>
             </button>
             <button
-                onClick={() =>
-                window.open("https://www.youtube.com/@shubhy4628", "_blank")
-                }
-                className="flex items-center justify-center space-x-2 px-4 py-2 bg-red-700 hover:bg-red-600 text-white rounded"
+              onClick={() => window.open("https://www.youtube.com/@shubhy4628", "_blank")}
+              className={`flex items-center justify-center space-x-2 ${BTN_SECONDARY}`}
             >
-                <FaYoutube className="w-6 h-6" />
-                <span>Youtube</span>
+              <FaYoutube className="w-5 h-5" />
+              <span>YouTube</span>
             </button>
             <a
-                href="/resume.pdf"
-                download
-                className="flex items-center justify-center space-x-2 block text-center px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded"
+              href="/resume.pdf"
+              download
+              className={`flex items-center justify-center space-x-2 ${BTN_SECONDARY}`}
             >
-                <FaFileDownload className="w-6 h-6" />
-                <span>Download Resume</span>
+              <FaFileDownload className="w-5 h-5" />
+              <span>Download Resume</span>
             </a>
             <button
-                onClick={() => setShowContact(true)}
-                className="flex items-center justify-center space-x-2 px-4 py-2 bg-white hover:bg-gray-400 text-black rounded"
+              onClick={() => setShowContact(true)}
+              className={`flex items-center justify-center space-x-2 ${BTN_SECONDARY}`}
             >
-                <FaEnvelope className="w-6 h-6" />
-                <span>Contact Me</span>
+              <FaEnvelope className="w-5 h-5" />
+              <span>Contact Me</span>
             </button>
           </div>
           <button
             onClick={() => setShowSocials(false)}
-            className="mt-4 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded self-center"
+            className={`mt-4 ${BTN_SECONDARY}`}
           >
             Back
           </button>
         </div>
       </div>
 
-      {/* Contact Modal Overlay */}
+      {/* Contact Modal */}
       {showContact && (
-        <div className="fixed inset-0 flex items-center justify-center bg-black bg-opacity-70 z-50">
-          <div className="bg-white p-6 rounded-lg max-w-md w-full mx-4">
-            <h2 className="text-xl font-bold mb-4 text-center text-gray-800">
+        <div className="fixed inset-0 flex items-center justify-center bg-black/70 z-50">
+          <div className="bg-[var(--surface-raised)] border border-[var(--border)] p-6 rounded-xl max-w-md w-full mx-4">
+            <h2 className="text-xl font-bold mb-2 text-center text-[var(--foreground)]">
               Contact Me
             </h2>
-            <form
-              onSubmit={(e) => {
-                e.preventDefault();
-                // For sending an email, you'll need a backend or third-party service.
-                // Example: using Formspree or EmailJS.
-                setShowContact(false);
-              }}
-              className="space-y-4"
+            <p className="text-[var(--muted)] text-sm text-center mb-5">
+              Send me an email and I&apos;ll get back to you.
+            </p>
+            <a
+              href="mailto:nucaluregaming@gmail.com?subject=Hello from your portfolio"
+              className={`flex items-center justify-center space-x-2 w-full ${BTN_PRIMARY}`}
             >
-              <div>
-                <label className="block text-gray-800 mb-1" htmlFor="name">
-                  Name
-                </label>
-                <input
-                  id="name"
-                  type="text"
-                  required
-                  className="w-full border border-gray-300 p-2 rounded text-gray-800"
-                />
-              </div>
-              <div>
-                <label className="block text-gray-800 mb-1" htmlFor="email">
-                  Email
-                </label>
-                <input
-                  id="email"
-                  type="email"
-                  required
-                  className="w-full border border-gray-300 p-2 rounded text-gray-800"
-                />
-              </div>
-              <div>
-                <label className="block text-gray-800 mb-1" htmlFor="message">
-                  Message
-                </label>
-                <textarea
-                  id="message"
-                  required
-                  className="w-full border border-gray-300 p-2 rounded text-gray-800"
-                ></textarea>
-              </div>
-              <button
-                type="submit"
-                className="w-full px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded"
-              >
-                Submit
-              </button>
-            </form>
+              <FaEnvelope className="w-4 h-4" />
+              <span>Open Email</span>
+            </a>
             <button
               onClick={() => setShowContact(false)}
-              className="mt-4 px-4 py-2 bg-gray-600 hover:bg-gray-700 text-white rounded w-full"
+              className={`mt-3 w-full ${BTN_SECONDARY}`}
             >
               Close
             </button>

@@ -168,6 +168,7 @@ const SnakeGame = () => {
       window.removeEventListener("touchstart", handleTouchStart);
       window.removeEventListener("touchend", handleTouchEnd);
     };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [gameOver]);
 
   return (
@@ -175,11 +176,11 @@ const SnakeGame = () => {
       <div id="board" ref={boardRef} className="board"></div>
       <div id="Score" ref={scoreBoardRef} className="scoreboard"></div>
       {gameOver && (
-        <div className="absolute inset-0 flex flex-col items-center justify-center bg-black bg-opacity-70">
-          <h1 className="text-white text-4xl mb-4">Game Over!</h1>
+        <div className="absolute inset-0 flex flex-col items-center justify-center bg-[var(--background)]/80">
+          <h1 className="text-[var(--foreground)] text-4xl mb-4">Game Over!</h1>
           <button
             onClick={restartGame}
-            className="bg-blue-600 hover:bg-blue-700 text-white px-6 py-3 rounded"
+            className="bg-[var(--accent)] hover:bg-[var(--accent-hover)] text-[#161616] font-semibold px-6 py-3 rounded-lg transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--accent)] focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--background)]"
           >
             Restart Game
           </button>
