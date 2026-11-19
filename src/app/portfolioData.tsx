@@ -49,6 +49,17 @@ export const projects: Project[] = [
     highlights: ["Custom AI pipeline", "PDF & DOCX export", "Production deployment"],
   },
   {
+    name: "Arcfield",
+    image: "/images/arcfield.png",
+    description:
+      "My freelance practice: fleet software for robotics teams. Arcfield builds the ops dashboards, live telemetry and log pipelines that robots need in the field, so autonomy engineers can stay focused on autonomy. The site includes a simulated fleet dashboard with yard, warehouse and city scenarios.",
+    techStack: ["React", "Three.js", "ROS"],
+    projectUrl: "https://arcfield-autonomy.vercel.app/",
+    featured: true,
+    role: "Founder · freelance",
+    highlights: ["Fleet ops dashboards", "Log & data pipelines", "Simulated fleet demo"],
+  },
+  {
     name: "AI Interviewer",
     image: "/images/MockLoop1.png",
     description:

@@ -1,42 +1,221 @@
-/* SnakeGame.css */
-.snake-game-container {
+/* Glossy Snake, styled to match the Aqua desktop. */
+.snake-game {
   display: flex;
   flex-direction: column;
   align-items: center;
-  justify-content: center;
-  height: 100%;
+  gap: 12px;
+  width: 100%;
+  outline: none;
+}
+
+.snake-lcd {
+  display: flex;
+  justify-content: space-between;
+  width: min(440px, 100%);
+  padding: 6px 14px;
+  border-radius: 8px;
+  font-family: var(--font-geist-mono), Menlo, monospace;
+  font-size: 12px;
+  letter-spacing: 0.08em;
+  color: #26301d;
+  background: linear-gradient(#f4f6e4, #dfe5c3);
+  border: 1px solid #8e9478;
+  box-shadow:
+    inset 0 2px 4px rgba(0, 0, 0, 0.25),
+    0 1px 0 rgba(255, 255, 255, 0.4);
+}
+.snake-lcd b {
+  font-size: 15px;
+}
+@keyframes snake-flash {
+  0% {
+    background: linear-gradient(#fffbd0, #f2e48a);
+    transform: scale(1.03);
+  }
+  100% {
+    transform: none;
+  }
+}
+.snake-lcd.flash {
+  animation: snake-flash 0.35s ease-out;
+}
+
+.snake-stage {
   position: relative;
+  width: min(440px, 100%);
+  aspect-ratio: 1;
 }
 
 .board {
   display: grid;
   grid-template-rows: repeat(18, 1fr);
   grid-template-columns: repeat(18, 1fr);
-  gap: 1px;
-  background-color: var(--surface-raised);
-  width: 80vmin;
-  height: 80vmin;
+  width: 100%;
+  height: 100%;
+  padding: 3px;
+  border-radius: 14px;
   overflow: hidden;
+  /* Two-tone checkerboard, 18 cells across. */
+  background:
+    repeating-conic-gradient(#b9e3a0 0 25%, #acd991 0 50%) 0 0 / calc(200% / 18) calc(200% / 18),
+    #b2de98;
+  box-shadow:
+    inset 0 3px 10px rgba(0, 0, 0, 0.25),
+    inset 0 0 0 1px rgba(0, 0, 0, 0.15),
+    0 2px 6px rgba(0, 0, 0, 0.3);
+}
+
+/* Body segments: glossy gel with a head-to-tail colour shift (set inline). */
+.board .snake {
+  margin: 1px;
+  border-radius: 30%;
+  background:
+    radial-gradient(circle at 35% 30%, rgba(255, 255, 255, 0.55), transparent 45%),
+    hsl(var(--seg-h, 140) 62% var(--seg-l, 45%));
+  box-shadow:
+    inset 0 -2px 3px rgba(0, 0, 0, 0.25),
+    0 1px 1px rgba(0, 0, 0, 0.2);
+}
+
+.board .head {
   position: relative;
+  margin: -1px;
+  border-radius: 38%;
+  z-index: 1;
+  background:
+    radial-gradient(circle at 35% 30%, rgba(255, 255, 255, 0.65), transparent 45%),
+    hsl(var(--seg-h, 132) 70% var(--seg-l, 50%));
+  box-shadow:
+    inset 0 -2px 4px rgba(0, 0, 0, 0.3),
+    0 2px 3px rgba(0, 0, 0, 0.3);
+}
+.board .head .eye {
+  position: absolute;
+  width: 26%;
+  height: 26%;
+  border-radius: 50%;
+  background: radial-gradient(circle at 60% 40%, #111 45%, #fff 48%);
+  box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.2);
+}
+/* Eyes sit on the side the head is facing. */
+.board .head[data-dir="right"] .eye { right: 14%; }
+.board .head[data-dir="right"] .eye:first-child { top: 16%; }
+.board .head[data-dir="right"] .eye:last-child { bottom: 16%; }
+.board .head[data-dir="left"] .eye { left: 14%; }
+.board .head[data-dir="left"] .eye:first-child { top: 16%; }
+.board .head[data-dir="left"] .eye:last-child { bottom: 16%; }
+.board .head[data-dir="up"] .eye { top: 14%; }
+.board .head[data-dir="up"] .eye:first-child { left: 16%; }
+.board .head[data-dir="up"] .eye:last-child { right: 16%; }
+.board .head[data-dir="down"] .eye { bottom: 14%; }
+.board .head[data-dir="down"] .eye:first-child { left: 16%; }
+.board .head[data-dir="down"] .eye:last-child { right: 16%; }
+
+@keyframes snake-pop {
+  0% { transform: scale(1); }
+  45% { transform: scale(1.35); }
+  100% { transform: scale(1); }
+}
+.board .head.pop {
+  animation: snake-pop 0.25s ease-out;
 }
 
-.head {
-  background-color: var(--accent);
-  border: 1px solid var(--accent-hover);
+/* Glossy apple with a stem and leaf. */
+.board .food {
+  position: relative;
+  margin: 2px;
+  border-radius: 46% 46% 50% 50%;
+  background:
+    radial-gradient(circle at 32% 30%, rgba(255, 255, 255, 0.85), transparent 30%),
+    radial-gradient(circle at 50% 60%, #ff5a4a, #d61f1f 60%, #9c0f12);
+  box-shadow: 0 2px 3px rgba(0, 0, 0, 0.35);
+  animation: snake-bob 1.4s ease-in-out infinite;
+}
+.board .food::before {
+  content: "";
+  position: absolute;
+  top: -22%;
+  left: 47%;
+  width: 9%;
+  height: 32%;
+  border-radius: 2px;
+  background: #6b3d1e;
+  transform: rotate(10deg);
+}
+.board .food::after {
+  content: "";
+  position: absolute;
+  top: -20%;
+  left: 54%;
+  width: 34%;
+  height: 22%;
+  border-radius: 0 80% 0 80%;
+  background: linear-gradient(135deg, #8be05f, #3c9b2a);
+  transform: rotate(-12deg);
+}
+@keyframes snake-bob {
+  50% { transform: translateY(-6%) scale(1.04); }
 }
 
-.snake {
-  background-color: var(--accent-secondary);
-  border: 1px solid var(--accent);
+.snake-overlay {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  border-radius: 14px;
+  text-align: center;
+  color: #1d2a12;
+  background: rgba(255, 255, 255, 0.35);
+  backdrop-filter: blur(2px);
+}
+.snake-overlay--hint {
+  pointer-events: none;
+}
+.snake-overlay p {
+  margin: 0;
+}
+.snake-title {
+  font-size: 22px;
+  font-weight: bold;
+  letter-spacing: 0.02em;
+}
+.snake-dialog {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+  min-width: 220px;
+  padding: 18px 22px;
+  border-radius: 10px;
+  color: #1b1b1b;
+  background: rgba(250, 250, 250, 0.97);
+  box-shadow: 0 12px 36px rgba(0, 0, 0, 0.4), 0 0 0 1px rgba(0, 0, 0, 0.25);
+}
+.snake-newbest {
+  color: #d27a00;
+  font-weight: bold;
+}
+.snake-btn {
+  height: 26px;
+  padding: 0 18px;
+  border-radius: 13px;
+  font: inherit;
+  color: #08214a;
+  border: 1px solid #3c6fbf;
+  background: linear-gradient(#cfe7ff, #7dbcff 45%, #3d8ff0 52%, #93cdff);
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.25);
+}
+.snake-btn:active {
+  filter: brightness(0.9);
 }
 
-.food {
-  background-color: var(--error);
-  border: 1px solid #e05555;
-}
-
-.scoreboard {
-  margin-top: 1rem;
-  font-size: 1.5rem;
-  color: var(--foreground);
+@media (prefers-reduced-motion: reduce) {
+  .board .food,
+  .board .head.pop,
+  .snake-lcd.flash {
+    animation: none;
+  }
 }
