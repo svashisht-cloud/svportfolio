@@ -16,6 +16,7 @@ src/
     layout.tsx        — root layout: applies fonts, imports globals.css, sets metadata
     page.tsx          — renders <Desktop/>; nothing else
     portfolioData.tsx — all content: projects[] and experiences[] (+ types)
+    photos.ts         — photos[] shown in the Photos window ({ src, alt, caption?, w, h })
     globals.css       — Tailwind import, CSS custom properties (still used by the demos)
     fonts.ts          — Kode Mono font export
   components/
@@ -51,6 +52,7 @@ Home (page.tsx)
          ├─ Window × n             ← one per open window
          │  └─ AppBody(kind, payload)
          ├─ Dock
+         ├─ wake overlay           ← screen-on fade at load (0.6s; .os-root.is-waking)
          └─ shut-down overlay      ← from the logo menu
 ```
 
@@ -69,19 +71,24 @@ State: `{ wins: WinState[], zTop }`. `WinState` holds `id, kind, title, payload,
 
 | kind | Content |
 |---|---|
-| `about` | Bio, photo, quick facts, buttons that launch other windows, social links |
+| `about` | Bio, photo, a row of icon shortcuts that each open a window (`Shortcuts`), quick facts, social links |
 | `finder` | `FinderList` (used as a full-screen window on mobile) |
 | `projects` | Finder icon view of all projects |
 | `project` | Screenshot, role, tags, description, highlights, Launch demo / View live / Source, "Next project" |
 | `demo` | `project.demoComponent` (Snake, Search Visualizer) on a dark background |
-| `work` | Work project: role · company · dates, tags, description, highlights |
-| `experience` | Timeline of roles (newest first) with clickable work projects |
-| `education` | UMass Amherst |
+| `work` | Terminal style: `cat README.md` prompt, ROLE/COMPANY/PERIOD/STACK rows, description, `[ OK ]` highlight lines |
+| `experience` | Terminal style `git log --graph`: one fake commit per role (newest first, `HEAD -> main` on the current one); work projects are clickable |
+| `education` | Graduation photo + UMass logo, degree, Aug 2019 – Dec 2022 |
+| `photos` | Viewer: large image, caption, thumbnail strip, prev/next; ←/→ keys while the window is focused |
 | `resume` | Toolbar (Download / Open in new tab) + PDF iframe |
 | `contact` | Mail compose form that opens a `mailto:` link |
 | `trash`, `help` | Joke / usage tips |
 
 To add a new kind: extend `AppKind`, then `describe`, `SIZES`, `appName`, `ICONS` in `appMeta.tsx`, and the `AppBody` switch.
+
+Terminal look: `.os-term` in `os.css` (Geist Mono, dark background, scanlines, blinking caret). Each `Line` fades in 40ms after the previous one. `experience`/`work` windows get the graphite title bar (`.os-window--dark`).
+
+**Adding a photo:** put a resized copy (max ~2000px) in `public/photos/` and add an entry to `src/app/photos.ts`.
 
 ### Window chrome (`Window.tsx`)
 - Drag by title bar (pointer capture), clamped to the viewport; resize from the bottom-right grip (min 300×200). While dragging, `html.os-dragging` disables iframe pointer events.
@@ -89,7 +96,7 @@ To add a new kind: extend `AppKind`, then `describe`, `SIZES`, `appName`, `ICONS
 - `role="dialog"`, focused on mount.
 
 ### Dock (`Dock.tsx`)
-Projects, About, Experience, one item per project with a `demoComponent`, Résumé, Mail | GitHub, LinkedIn | minimized windows | Trash. Magnification uses item centres measured on pointer-enter (mouse only). Items bounce on first launch; a triangle marks open windows.
+Projects, About, Experience, one item per project with a `demoComponent`, Résumé, Photos, Mail | GitHub, LinkedIn, YouTube | minimized windows | Trash. Magnification uses item centres measured on pointer-enter (mouse only). Items bounce on first launch; a triangle marks open windows.
 
 ### FinderList (`FinderSidebar.tsx`)
 Search field (filters projects and work projects by name, tech stack, description), Favorites, Projects (★ = featured), Experience (role groups with disclosure triangles; newest role expanded). The item for the focused window is highlighted.
@@ -116,7 +123,7 @@ interface Project {
 }
 ```
 
-9 personal projects: Forte Resume, AI Interviewer, Search Algorithm Viz, Snake Game, Moral-Fibre, PySvap, Windows XP Clone, Discord Bot, Personal Portfolio (Old).
+10 personal projects: Forte Resume, Arcfield (freelance practice), AI Interviewer, Search Algorithm Viz, Snake Game, Moral-Fibre, PySvap, Windows XP Clone, Discord Bot, Personal Portfolio (Old).
 
 ### Work experience (`experiences: Experience[]`)
 
@@ -164,6 +171,8 @@ Currently one company (Outrider) with 3 roles and 8 work projects total. Work pr
 | `images/personal.png` | About window — profile photo |
 | `images/outrider.jpeg` | Referenced by `experiences[].logo` only; not rendered |
 | `images/umass.png` | Education window |
+| `images/umass-grad.jpg` | Education window + Photos (graduation photo, 643×1200) |
+| `images/arcfield.png` | Arcfield project icon + window screenshot (crop of the live site) |
 | `resume.pdf` | Résumé window (iframe + download), logo menu, desktop icon |
 | `os/cursor-arrow.svg`, `os/cursor-hand.svg` | Retro cursors (os.css) |
 | `images/forte2.png` | Forte Resume project icon + window screenshot |

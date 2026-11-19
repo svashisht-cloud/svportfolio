@@ -99,6 +99,7 @@ export default function Window({
         "os-window",
         `phase-${win.phase}`,
         focused ? "is-focused" : "is-inactive",
+        win.kind === "experience" || win.kind === "work" ? "os-window--dark" : "",
         moving ? "is-moving" : "",
       ].join(" ")}
       style={style}

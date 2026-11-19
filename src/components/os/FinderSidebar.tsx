@@ -12,6 +12,7 @@ const FAVORITES: { kind: AppKind; label: string }[] = [
   { kind: "experience", label: "Experience" },
   { kind: "education", label: "Education" },
   { kind: "resume", label: "Résumé" },
+  { kind: "photos", label: "Photos" },
   { kind: "contact", label: "Contact" },
 ];
 

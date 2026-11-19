@@ -1,9 +1,11 @@
 "use client";
-import { memo, useState } from "react";
+import { memo, useEffect, useState } from "react";
 import Image from "next/image";
 import {
   FaCode,
   FaDownload,
+  FaChevronLeft,
+  FaChevronRight,
   FaExternalLinkAlt,
   FaGithub,
   FaLinkedin,
@@ -12,7 +14,8 @@ import {
   FaYoutube,
 } from "react-icons/fa";
 import { experiences, projects, type Project } from "@/app/portfolioData";
-import { AppIcon, EMAIL, LINKS } from "./appMeta";
+import { photos } from "@/app/photos";
+import { AppIcon, EMAIL, LINKS, prefersReducedMotion } from "./appMeta";
 import { FinderList } from "./FinderSidebar";
 import { useWM } from "./WindowManager";
 import type { AppKind, AppPayload } from "./types";
@@ -65,6 +68,49 @@ function ExternalButton({
   );
 }
 
+const SHORTCUTS: { kind: AppKind; label: string }[] = [
+  { kind: "projects", label: "Projects" },
+  { kind: "experience", label: "Experience" },
+  { kind: "education", label: "Education" },
+  { kind: "resume", label: "Résumé" },
+  { kind: "photos", label: "Photos" },
+  { kind: "contact", label: "Mail" },
+];
+
+/** Icon row in About Me.txt. Each icon opens its own window. */
+function Shortcuts() {
+  const wm = useWM();
+  const [pressed, setPressed] = useState<AppKind | null>(null);
+  const open = (kind: AppKind) => {
+    setPressed(kind);
+    window.setTimeout(
+      () => {
+        setPressed(null);
+        wm.launch(kind);
+      },
+      prefersReducedMotion() ? 0 : 160,
+    );
+  };
+  return (
+    <ul className="os-shortcuts" aria-label="Open a window">
+      {SHORTCUTS.map((sc) => (
+        <li key={sc.kind}>
+          <button
+            type="button"
+            className={`os-shortcut${pressed === sc.kind ? " is-pressed" : ""}`}
+            onClick={() => open(sc.kind)}
+          >
+            <span className="os-shortcut-icon">
+              <AppIcon kind={sc.kind} />
+            </span>
+            <span>{sc.label}</span>
+          </button>
+        </li>
+      ))}
+    </ul>
+  );
+}
+
 function AboutApp() {
   const wm = useWM();
   return (
@@ -89,23 +135,7 @@ function AboutApp() {
         robotics platforms, and full-stack web. I focus on developer tools, language model
         applications, and real-time infrastructure.
       </p>
-      <div className="os-actions">
-        <button type="button" className="aqua-btn aqua-btn--primary" onClick={() => wm.launch("projects")}>
-          Browse Projects
-        </button>
-        <button type="button" className="aqua-btn" onClick={() => wm.launch("experience")}>
-          Experience
-        </button>
-        <button type="button" className="aqua-btn" onClick={() => wm.launch("education")}>
-          Education
-        </button>
-        <button type="button" className="aqua-btn" onClick={() => wm.launch("resume")}>
-          Résumé
-        </button>
-        <button type="button" className="aqua-btn" onClick={() => wm.launch("contact")}>
-          Say hello
-        </button>
-      </div>
+      <Shortcuts />
 
       <h3>Quick facts</h3>
       <dl className="os-facts">
@@ -222,90 +252,209 @@ function ProjectApp({ project }: { project: Project }) {
   );
 }
 
+/** Short fake commit hash derived from a string, for the git-log look. */
+function hash(text: string) {
+  let h = 2166136261;
+  for (let i = 0; i < text.length; i++) h = Math.imul(h ^ text.charCodeAt(i), 16777619);
+  return (h >>> 0).toString(16).padStart(8, "0").slice(0, 7);
+}
+
+const slug = (text: string) =>
+  text
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-|-$/g, "");
+
+/** Lines fade in one after another, like output being printed. */
+function Line({
+  i,
+  className,
+  as: Tag = "div",
+  children,
+}: {
+  i: number;
+  className?: string;
+  as?: "div" | "li";
+  children: React.ReactNode;
+}) {
+  return (
+    <Tag
+      className={`os-term-line${className ? ` ${className}` : ""}`}
+      style={{ animationDelay: `${i * 40}ms` }}
+    >
+      {children}
+    </Tag>
+  );
+}
+
 function WorkApp({ payload }: { payload: AppPayload }) {
   const work = payload.work;
   if (!work) return null;
+  let n = 0;
   return (
-    <article className="os-doc">
-      <h1>{work.name}</h1>
-      <p className="os-meta">
-        {payload.role?.title} · {payload.company} · {payload.role?.dateRange}
-      </p>
-      <Tags tags={work.techStack} />
-      <h3>About</h3>
-      <p>{work.description}</p>
-      <Highlights items={work.highlights} />
+    <article className="os-term">
+      <Line i={n++} className="os-term-prompt">
+        <span className="os-term-user">shubh@{slug(payload.company ?? "work")}</span>{" "}
+        <span className="os-term-path">~</span> % cat ./{slug(work.name)}/README.md
+      </Line>
+      <Line i={n++}>
+        <h1 className="os-term-title"># {work.name}</h1>
+      </Line>
+      <dl className="os-term-kv">
+        <Line i={n++}>
+          <dt>ROLE</dt>
+          <dd>{payload.role?.title}</dd>
+        </Line>
+        <Line i={n++}>
+          <dt>COMPANY</dt>
+          <dd>{payload.company}</dd>
+        </Line>
+        <Line i={n++}>
+          <dt>PERIOD</dt>
+          <dd>{payload.role?.dateRange}</dd>
+        </Line>
+        {work.techStack?.length ? (
+          <Line i={n++}>
+            <dt>STACK</dt>
+            <dd className="os-term-chips">
+              {work.techStack.map((t) => (
+                <span key={t}>[{t}]</span>
+              ))}
+            </dd>
+          </Line>
+        ) : null}
+      </dl>
+      <Line i={n++} className="os-term-comment">
+        ## About
+      </Line>
+      <Line i={n++}>
+        <p className="os-term-text">{work.description}</p>
+      </Line>
+      {work.highlights?.length ? (
+        <>
+          <Line i={n++} className="os-term-comment">
+            ## Highlights
+          </Line>
+          {work.highlights.map((h) => (
+            <Line key={h} i={n++}>
+              <span className="os-term-ok">[ OK ]</span> {h}
+            </Line>
+          ))}
+        </>
+      ) : null}
       {(work.projectUrl || work.codeUrl) && (
-        <div className="os-actions">
-          {work.projectUrl && (
-            <ExternalButton href={work.projectUrl} primary>
-              <FaExternalLinkAlt aria-hidden /> View live
-            </ExternalButton>
-          )}
-          {work.codeUrl && (
-            <ExternalButton href={work.codeUrl}>
-              <FaCode aria-hidden /> Source
-            </ExternalButton>
-          )}
-        </div>
+        <Line i={n++}>
+          <div className="os-actions">
+            {work.projectUrl && (
+              <ExternalButton href={work.projectUrl}>
+                <FaExternalLinkAlt aria-hidden /> View live
+              </ExternalButton>
+            )}
+            {work.codeUrl && (
+              <ExternalButton href={work.codeUrl}>
+                <FaCode aria-hidden /> Source
+              </ExternalButton>
+            )}
+          </div>
+        </Line>
       )}
+      <Line i={n++} className="os-term-prompt">
+        <span className="os-term-user">shubh@{slug(payload.company ?? "work")}</span>{" "}
+        <span className="os-term-path">~</span> % <span className="os-term-caret" aria-hidden />
+      </Line>
     </article>
   );
 }
 
 function ExperienceApp() {
   const wm = useWM();
+  let n = 0;
   return (
-    <article className="os-doc">
-      {experiences.map((exp) => (
-        <section key={exp.company}>
-          <h1>{exp.company}</h1>
-          <ol className="os-timeline">
-            {[...exp.roles].reverse().map((role) => (
-              <li key={role.title}>
-                <p className="os-timeline-role">
-                  <strong>{role.title}</strong>
-                  <span>{role.dateRange}</span>
-                </p>
-                <ul>
-                  {role.projects.map((w) => (
-                    <li key={w.name}>
-                      <button
-                        type="button"
-                        className="os-link"
-                        onClick={() =>
-                          wm.launch("work", { work: w, company: exp.company, role })
-                        }
-                      >
-                        {w.name}
-                      </button>
-                    </li>
-                  ))}
-                </ul>
-              </li>
-            ))}
-          </ol>
-        </section>
-      ))}
+    <article className="os-term">
+      {experiences.map((exp) => {
+        const roles = [...exp.roles].reverse();
+        return (
+          <section key={exp.company}>
+            <Line i={n++} className="os-term-prompt">
+              <span className="os-term-user">shubh@{slug(exp.company)}</span>{" "}
+              <span className="os-term-path">~/career</span> % git log --graph --roles
+            </Line>
+            <ol className="os-git">
+              {roles.map((role, r) => (
+                <li key={role.title}>
+                  <Line i={n++}>
+                    <span className="os-git-graph">*</span>{" "}
+                    <span className="os-git-hash">commit {hash(role.title)}</span>
+                    {r === 0 && <span className="os-git-ref"> (HEAD -&gt; main)</span>}
+                  </Line>
+                  <Line i={n++}>
+                    <span className="os-git-graph">|</span> Date: {role.dateRange}
+                  </Line>
+                  <Line i={n++}>
+                    <span className="os-git-graph">|</span>{" "}
+                    <strong className="os-git-msg">{role.title}</strong>
+                    <span className="os-term-dim"> @ {exp.company}</span>
+                  </Line>
+                  <ul>
+                    {role.projects.map((w) => (
+                      <Line key={w.name} i={n++} as="li">
+                        <span className="os-git-graph">|</span>{" "}
+                        <span className="os-term-dim">+</span>{" "}
+                        <button
+                          type="button"
+                          className="os-term-link"
+                          onClick={() =>
+                            wm.launch("work", { work: w, company: exp.company, role })
+                          }
+                        >
+                          {w.name}
+                        </button>
+                      </Line>
+                    ))}
+                  </ul>
+                  {r < roles.length - 1 && (
+                    <Line i={n++}>
+                      <span className="os-git-graph">|</span>
+                    </Line>
+                  )}
+                </li>
+              ))}
+            </ol>
+          </section>
+        );
+      })}
+      <Line i={n++} className="os-term-prompt">
+        <span className="os-term-path">~/career</span> % <span className="os-term-caret" aria-hidden />
+      </Line>
     </article>
   );
 }
 
 function EducationApp() {
   return (
-    <article className="os-doc os-center">
-      <Image
-        src="/images/umass.png"
-        alt="UMass Amherst logo"
-        width={120}
-        height={120}
-        style={{ height: "auto" }}
-      />
-      <h1>University of Massachusetts Amherst</h1>
-      <p className="os-meta">Bachelor&apos;s in Computer Science</p>
-      <p>
-        Where I learned to build things that actually work, preferably on the first try.
-      </p>
+    <article className="os-edu">
+      <div className="os-edu-photo">
+        <Image
+          src="/images/umass-grad.jpg"
+          alt="Shubh in a graduation cap and gown, with the Manhattan skyline behind"
+          fill
+          sizes="(max-width: 767px) 100vw, 260px"
+        />
+      </div>
+      <div className="os-doc os-edu-info">
+        <Image
+          src="/images/umass.png"
+          alt="UMass Amherst logo"
+          width={84}
+          height={84}
+          style={{ height: "auto" }}
+        />
+        <h1>University of Massachusetts Amherst</h1>
+        <p className="os-meta">Bachelor&apos;s in Computer Science</p>
+        <p className="os-edu-dates">Aug 2019 – Dec 2022</p>
+        <p>Where I learned to build things that actually work, preferably on the first try.</p>
+        <p className="os-meta">Finished a month ahead of schedule.</p>
+      </div>
     </article>
   );
 }
@@ -365,6 +514,76 @@ function DemoApp({ project }: { project: Project }) {
   return <div className="os-demo">{project.demoComponent}</div>;
 }
 
+function PhotosApp() {
+  const [index, setIndex] = useState(0);
+  const count = photos.length;
+  const go = (d: number) => setIndex((i) => (i + d + count) % count);
+  const photo = photos[index];
+
+  useEffect(() => {
+    if (count < 2) return;
+    // Arrow keys only while the Photos window has focus (Snake also listens to arrows).
+    const onKey = (e: KeyboardEvent) => {
+      const win = document.activeElement?.closest("[data-win-id='photos']");
+      if (!win) return;
+      if (e.key === "ArrowLeft") setIndex((i) => (i - 1 + count) % count);
+      if (e.key === "ArrowRight") setIndex((i) => (i + 1) % count);
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [count]);
+
+  if (!photo) return <div className="os-doc os-center">No photos yet.</div>;
+  return (
+    <div className="os-photos">
+      <figure className="os-photo-stage">
+        <div className="os-photo-frame">
+          <Image key={photo.src} src={photo.src} alt={photo.alt} fill sizes="760px" />
+        </div>
+        {photo.caption && <figcaption>{photo.caption}</figcaption>}
+      </figure>
+      <div className="os-photo-bar">
+        <button
+          type="button"
+          className="aqua-btn"
+          aria-label="Previous photo"
+          disabled={count < 2}
+          onClick={() => go(-1)}
+        >
+          <FaChevronLeft aria-hidden />
+        </button>
+        <ul className="os-photo-strip" aria-label="Photos">
+          {photos.map((p, i) => (
+            <li key={p.src}>
+              <button
+                type="button"
+                className={`os-photo-thumb${i === index ? " is-current" : ""}`}
+                aria-label={p.caption ?? p.alt}
+                aria-current={i === index ? "true" : undefined}
+                onClick={() => setIndex(i)}
+              >
+                <Image src={p.src} alt="" fill sizes="64px" />
+              </button>
+            </li>
+          ))}
+        </ul>
+        <button
+          type="button"
+          className="aqua-btn"
+          aria-label="Next photo"
+          disabled={count < 2}
+          onClick={() => go(1)}
+        >
+          <FaChevronRight aria-hidden />
+        </button>
+        <span className="os-photo-count">
+          {index + 1} of {count}
+        </span>
+      </div>
+    </div>
+  );
+}
+
 function TrashApp() {
   return (
     <div className="os-doc os-center">
@@ -384,6 +603,7 @@ function HelpApp() {
         <li>Drag a window by its title bar. Drag the bottom-right corner to resize it.</li>
         <li>Red closes, yellow minimizes to the dock, green zooms to fill the screen.</li>
         <li>Double-click a title bar to minimize. Double-click desktop icons to open them.</li>
+        <li>In Photos, use the left and right arrow keys to flip through pictures.</li>
         <li>Snake and the Search Visualizer run right here: open them from the dock.</li>
         <li>Press Escape on a focused window to close it.</li>
       </ul>
@@ -424,5 +644,7 @@ export const AppBody = memo(function AppBody({
       return <TrashApp />;
     case "help":
       return <HelpApp />;
+    case "photos":
+      return <PhotosApp />;
   }
 });

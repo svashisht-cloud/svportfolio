@@ -12,7 +12,8 @@ export type AppKind =
   | "contact"
   | "demo"
   | "trash"
-  | "help";
+  | "help"
+  | "photos";
 
 export interface AppPayload {
   project?: Project;

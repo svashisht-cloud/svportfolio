@@ -9,10 +9,12 @@ import {
   FaFolderOpen,
   FaGithub,
   FaGraduationCap,
+  FaImages,
   FaLinkedin,
   FaQuestion,
   FaTrashAlt,
   FaUser,
+  FaYoutube,
 } from "react-icons/fa";
 import type { AppKind, AppPayload } from "./types";
 
@@ -24,9 +26,9 @@ export const MOBILE_QUERY = "(max-width: 767px)";
 
 export const EMAIL = "nucaluregaming@gmail.com";
 export const LINKS = {
-  github: "https://github.com/shubh-vashisht",
+  github: "https://github.com/svashisht-cloud",
   linkedin: "https://www.linkedin.com/in/shubh-vashisht/",
-  youtube: "https://www.youtube.com/@shubhy4628",
+  youtube: "https://www.youtube.com/@shubhy_vashisht",
 };
 
 export function describe(kind: AppKind, payload?: AppPayload): { id: string; title: string } {
@@ -55,6 +57,8 @@ export function describe(kind: AppKind, payload?: AppPayload): { id: string; tit
       return { id: "trash", title: "Trash" };
     case "help":
       return { id: "help", title: "Portfolio Help" };
+    case "photos":
+      return { id: "photos", title: "Photos" };
   }
 }
 
@@ -65,12 +69,13 @@ const SIZES: Record<AppKind, [number, number]> = {
   project: [640, 620],
   work: [600, 560],
   experience: [580, 560],
-  education: [440, 420],
+  education: [640, 520],
   resume: [660, 760],
   contact: [540, 460],
   demo: [560, 680],
   trash: [400, 280],
   help: [480, 440],
+  photos: [780, 620],
 };
 
 export function defaultSize(kind: AppKind, payload?: AppPayload): [number, number] {
@@ -90,6 +95,8 @@ export function appName(kind: AppKind | undefined, payload?: AppPayload): string
       return "Mail";
     case "help":
       return "Help Viewer";
+    case "photos":
+      return "Photos";
     case "demo":
       return payload?.project?.name ?? "Demo";
     case "project":
@@ -123,6 +130,8 @@ const ICONS: Record<string, IconSpec> = {
   help: { icon: FaQuestion, c1: "#fff1a6", c2: "#cf9a12" },
   github: { icon: FaGithub, c1: "#8a929e", c2: "#161b22" },
   linkedin: { icon: FaLinkedin, c1: "#7cc0ff", c2: "#0a5cb8" },
+  youtube: { icon: FaYoutube, c1: "#ff8a80", c2: "#c4100b" },
+  photos: { icon: FaImages, c1: "#ffe08a", c2: "#e0631d" },
 };
 
 /** Glossy rounded tile icon. Project-backed windows use the project's screenshot. */

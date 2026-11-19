@@ -26,6 +26,7 @@ const DESKTOP_ICONS: { kind: AppKind; label: string }[] = [
   { kind: "about", label: "About Me.txt" },
   { kind: "projects", label: "Projects" },
   { kind: "resume", label: "Résumé.pdf" },
+  { kind: "photos", label: "Photos" },
   { kind: "contact", label: "Mail Me" },
 ];
 
@@ -67,6 +68,8 @@ function Workspace() {
   const mobile = useIsMobile();
   const { wins, focused } = useWMState();
   const [shutDown, setShutDown] = useState(false);
+  // Screen-on effect: plays once per page load. CSS skips it under reduced motion.
+  const [waking, setWaking] = useState(true);
 
   // Open the starting windows once. On phones, the Finder list sits under About.
   useEffect(() => {
@@ -75,7 +78,7 @@ function Workspace() {
   }, [wm]);
 
   return (
-    <div className={`os-root${mobile ? " is-mobile" : ""}`}>
+    <div className={`os-root${mobile ? " is-mobile" : ""}${waking ? " is-waking" : ""}`}>
       <div className="os-wallpaper" aria-hidden />
       <MenuBar onShutDown={() => setShutDown(true)} />
       {!mobile && <FinderSidebar />}
@@ -88,6 +91,15 @@ function Workspace() {
         ))}
       </main>
       <Dock mobile={mobile} />
+      {waking && (
+        <div
+          className="os-wake"
+          aria-hidden
+          onAnimationEnd={(e) => {
+            if (e.target === e.currentTarget) setWaking(false);
+          }}
+        />
+      )}
       {shutDown && (
         <div className="os-shutdown" role="dialog" aria-label="Shut down">
           <p>Thanks for stopping by.</p>

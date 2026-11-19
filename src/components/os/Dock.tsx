@@ -27,12 +27,14 @@ const APPS: DockItem[] = [
     payload: { project: p },
   })),
   { key: "resume", label: "Résumé", kind: "resume" },
+  { key: "photos", label: "Photos", kind: "photos" },
   { key: "contact", label: "Mail", kind: "contact" },
 ];
 
 const LINK_ITEMS: DockItem[] = [
   { key: "github", label: "GitHub", icon: "github", href: LINKS.github },
   { key: "linkedin", label: "LinkedIn", icon: "linkedin", href: LINKS.linkedin },
+  { key: "youtube", label: "YouTube", icon: "youtube", href: LINKS.youtube },
 ];
 
 const BASE = 48;
