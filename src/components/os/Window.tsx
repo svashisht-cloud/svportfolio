@@ -2,7 +2,10 @@
 import { useEffect, useRef, useState } from "react";
 import type { WinState } from "./types";
 import { useWM } from "./WindowManager";
-import { MENUBAR_H } from "./appMeta";
+import { MENUBAR_H, accentFor } from "./appMeta";
+import { useShake } from "./eggs/useShake";
+import { play } from "./sounds";
+import { useToast } from "./Toast";
 
 const MIN_W = 300;
 const MIN_H = 200;
@@ -26,6 +29,12 @@ export default function Window({
   const ref = useRef<HTMLElement>(null);
   const gesture = useRef<Gesture | null>(null);
   const [moving, setMoving] = useState(false);
+  const toast = useToast();
+  const shake = useShake(() => {
+    play("pop");
+    wm.drop();
+    toast("Whoa, steady! Right-click the desktop and choose Clean Up to tidy.", "🫨");
+  });
 
   // Move keyboard focus into a newly opened window: its marked input if it has one
   // (e.g. the Terminal prompt), otherwise the window itself.
@@ -38,7 +47,11 @@ export default function Window({
   }, [focused]);
 
   const begin = (e: React.PointerEvent, g: Gesture) => {
-    e.currentTarget.setPointerCapture(e.pointerId);
+    try {
+      e.currentTarget.setPointerCapture(e.pointerId);
+    } catch {
+      // Capture can fail for synthetic or already-released pointers; dragging still works.
+    }
     gesture.current = g;
     setMoving(true);
     // Iframes (the résumé) would otherwise swallow pointer events mid-drag.
@@ -49,6 +62,7 @@ export default function Window({
     const g = gesture.current;
     if (!g) return;
     if (g.mode === "move") {
+      shake.track(e.clientX);
       const x = Math.max(-win.w + 80, Math.min(window.innerWidth - 80, e.clientX - g.offX));
       const y = Math.max(MENUBAR_H, Math.min(window.innerHeight - 40, e.clientY - g.offY));
       wm.move(win.id, x, y);
@@ -67,6 +81,7 @@ export default function Window({
 
   const onTitleDown = (e: React.PointerEvent) => {
     if (mobile || e.button !== 0 || (e.target as HTMLElement).closest("button")) return;
+    shake.reset(e.clientX);
     begin(e, { mode: "move", offX: e.clientX - win.x, offY: e.clientY - win.y });
   };
 
@@ -82,6 +97,9 @@ export default function Window({
     });
   };
 
+  const accent =
+    win.kind === "project" || win.kind === "demo" ? accentFor(win.payload) : undefined;
+
   const style = {
     left: win.x,
     top: win.y,
@@ -91,6 +109,8 @@ export default function Window({
     display: win.minimized ? "none" : undefined,
     "--mx": `${win.mx}px`,
     "--my": `${win.my}px`,
+    ...(win.tilt !== undefined ? { "--tilt": `${win.tilt}deg` } : {}),
+    ...(accent ? { "--accent": accent } : {}),
   } as React.CSSProperties;
 
   return (
@@ -108,6 +128,8 @@ export default function Window({
           ? "os-window--dark"
           : "",
         win.kind === "music" ? "os-window--metal" : "",
+        accent ? "os-window--accent" : "",
+        win.tilt !== undefined ? "is-fallen" : "",
         moving ? "is-moving" : "",
       ].join(" ")}
       style={style}

@@ -87,7 +87,7 @@ export function Login({ onLogin, onShutDown }: { onLogin: () => void; onShutDown
         </div>
         <div className="os-login-body">
           <button ref={userRef} type="button" className="os-login-user" onClick={onLogin}>
-            <Image src="/images/personal.png" alt="" width={84} height={84} />
+            <Image src="/images/avatar.jpg" alt="" width={84} height={84} />
             <span>Shubh Vashisht</span>
           </button>
           <p className="os-meta">Click your picture to log in</p>

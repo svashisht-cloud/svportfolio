@@ -2,6 +2,7 @@
 import { useState } from "react";
 import { projects } from "@/app/portfolioData";
 import { AppIcon, LINKS, describe } from "./appMeta";
+import { useTrashFull } from "./eggs/trash";
 import { useWM, useWMState } from "./WindowManager";
 import type { AppKind, AppPayload } from "./types";
 
@@ -50,6 +51,7 @@ export default function Dock({ mobile }: { mobile: boolean }) {
   // Item centres measured when the pointer enters, so magnification doesn't feed back on itself.
   const [centres, setCentres] = useState<Record<string, number>>({});
   const [bouncing, setBouncing] = useState<Record<string, boolean>>({});
+  const trashFull = useTrashFull();
 
   const size = (key: string) => {
     const base = mobile ? 40 : BASE;
@@ -89,7 +91,9 @@ export default function Dock({ mobile }: { mobile: boolean }) {
       <li key={item.key} data-dock-key={item.key} style={{ width: s, height: s }}>
         <button
           type="button"
-          className={`os-dock-item${bouncing[item.key] ? " is-bouncing" : ""}`}
+          className={`os-dock-item${bouncing[item.key] ? " is-bouncing" : ""}${
+            item.key === "trash" && trashFull ? " is-full" : ""
+          }`}
           aria-label={item.href ? `${item.label} (opens in new tab)` : `Open ${item.label}`}
           onClick={() => activate(item)}
         >

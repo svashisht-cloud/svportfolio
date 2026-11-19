@@ -1,7 +1,13 @@
 "use client";
 import { useEffect, useRef, useState } from "react";
 import { appName, LINKS } from "./appMeta";
+import { FaMoon, FaSun, FaVolumeMute, FaVolumeUp } from "react-icons/fa";
+import Calendar from "./Calendar";
+import { unlockDevMode } from "./eggs/bus";
+import { play } from "./sounds";
+import { useToast } from "./Toast";
 import { NowPlaying } from "./Music";
+import { setPrefs, useEffectiveTheme, usePrefs } from "./prefs";
 import { useWM, useWMState } from "./WindowManager";
 
 type MenuEntry =
@@ -52,6 +58,25 @@ export default function MenuBar({
   const [open, setOpen] = useState<string | null>(null);
   const barRef = useRef<HTMLElement>(null);
   const clock = useClock();
+  const theme = useEffectiveTheme();
+  const prefs = usePrefs();
+  const toast = useToast();
+  const [calendarOpen, setCalendarOpen] = useState(false);
+  const logoClicks = useRef<number[]>([]);
+
+  // Easter egg: 7 quick clicks on the logo unlocks "developer mode".
+  /** Returns true when this click completed the 7-click Easter egg. */
+  const countLogoClick = () => {
+    const now = Date.now();
+    logoClicks.current = [...logoClicks.current.filter((t) => now - t < 3000), now];
+    if (logoClicks.current.length < 7) return false;
+    logoClicks.current = [];
+    setOpen(null);
+    unlockDevMode();
+    play("pop");
+    toast("You are now a developer. Try 'devmode' in Terminal.", "🛠");
+    return true;
+  };
 
   useEffect(() => {
     if (!open) return;
@@ -138,6 +163,12 @@ export default function MenuBar({
         { label: "Projects", run: () => wm.launch("projects") },
         { label: "Experience", run: () => wm.launch("experience") },
         { label: "Education", run: () => wm.launch("education") },
+        "sep",
+        {
+          label: prefs.widgets ? "Hide Widgets" : "Show Widgets",
+          run: () => setPrefs({ widgets: !prefs.widgets }),
+        },
+        { label: theme === "dark" ? "Light Mode" : "Dark Mode", run: () => setPrefs({ theme: theme === "dark" ? "light" : "dark" }) },
       ],
     },
     {
@@ -194,7 +225,10 @@ export default function MenuBar({
               aria-haspopup="menu"
               aria-expanded={open === m.key}
               aria-label={m.aria}
-              onClick={() => setOpen((o) => (o === m.key ? null : m.key))}
+              onClick={() => {
+                if (m.key === "logo" && countLogoClick()) return;
+                setOpen((o) => (o === m.key ? null : m.key));
+              }}
               onPointerEnter={() => {
                 if (open && open !== m.key) setOpen(m.key);
               }}
@@ -234,7 +268,37 @@ export default function MenuBar({
       </nav>
       <div className="os-menubar-right">
         <NowPlaying />
-        <span aria-label="Clock">{clock}</span>
+        <button
+          type="button"
+          className="os-menubar-icon"
+          aria-label={theme === "dark" ? "Switch to light mode" : "Switch to dark mode"}
+          title={theme === "dark" ? "Light mode" : "Dark mode"}
+          onClick={() => setPrefs({ theme: theme === "dark" ? "light" : "dark" })}
+        >
+          {theme === "dark" ? <FaSun aria-hidden /> : <FaMoon aria-hidden />}
+        </button>
+        <button
+          type="button"
+          className="os-menubar-icon"
+          aria-label={prefs.sound ? "Turn sounds off" : "Turn sounds on"}
+          title={prefs.sound ? "Sounds on" : "Sounds off"}
+          onClick={() => {
+            setPrefs({ sound: !prefs.sound });
+            if (!prefs.sound) window.setTimeout(() => play("click"), 0);
+          }}
+        >
+          {prefs.sound ? <FaVolumeUp aria-hidden /> : <FaVolumeMute aria-hidden />}
+        </button>
+        <button
+          type="button"
+          className="os-clock"
+          aria-label="Clock: open calendar"
+          aria-expanded={calendarOpen}
+          onClick={() => setCalendarOpen((o) => !o)}
+        >
+          {clock}
+        </button>
+        {calendarOpen && <Calendar onClose={() => setCalendarOpen(false)} />}
       </div>
     </header>
   );

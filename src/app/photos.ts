@@ -13,6 +13,12 @@ export interface Photo {
  */
 export const photos: Photo[] = [
   {
+    src: "/photos/cafe.jpg",
+    alt: "Shubh at a café table, smiling",
+    w: 1600,
+    h: 1200,
+  },
+  {
     src: "/images/umass-grad.jpg",
     alt: "Shubh in a graduation cap and gown on a boardwalk, with the Manhattan skyline behind",
     caption: "Graduation, UMass Amherst · Class of 2022",

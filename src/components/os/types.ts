@@ -54,4 +54,7 @@ export interface WinState extends Rect {
   my: number;
   /** Geometry to return to when un-maximizing. */
   prev?: Rect;
+  /** "Windows fall" Easter egg: where the window was before it fell, and its resting tilt. */
+  fallFrom?: Rect;
+  tilt?: number;
 }

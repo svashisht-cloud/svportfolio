@@ -18,6 +18,7 @@ src/
     portfolioData.tsx — all content: projects[] and experiences[] (+ types)
     photos.ts         — photos[] shown in the Photos window ({ src, alt, caption?, w, h })
     songs.ts          — songs[] for the Music window ({ title, artist, src }); files in public/music/
+    widgets.ts        — text for the sticky-note widget
     globals.css       — Tailwind import, CSS custom properties (still used by the demos)
     fonts.ts          — Kode Mono font export
   components/
@@ -38,6 +39,13 @@ src/
       Music.tsx         — MusicProvider (single <audio>), MusicApp window, NowPlaying menu-bar item
       prefs.ts          — wallpaper + appearance store (useSyncExternalStore, localStorage)
       useSelection.ts   — Finder-style selection hook (click, Cmd/Ctrl, Shift, rubber band, keys)
+      useTilt.ts        — pointer-follow tilt + shine handlers (sets --rx/--ry/--sx/--sy)
+      Widgets.tsx       — draggable desktop widgets (clock, sticky note, now playing, top tech)
+      Calendar.tsx      — month calendar from the menu-bar clock; milestones derived from data
+      Toast.tsx         — ToastProvider / useToast() notification bubbles
+      sounds.ts         — Web Audio synthesised UI sounds; play(name) is a no-op unless prefs.sound
+      eggs/             — Easter eggs: bus.ts (event bus + dev mode), trash.ts, useKonami.ts,
+                          Confetti.tsx, ScreenSaver.tsx, Panic.tsx, MatrixRain.tsx, useShake.ts
       os.css            — all desktop styling (Aqua chrome, cursors, animations, mobile)
     SnakeGame.jsx     + SnakeGame.css
     SearchVisualizer.jsx + SearchVisualizer.css
@@ -55,15 +63,19 @@ Home (page.tsx)
 └─ Desktop
    └─ WindowManagerProvider        ← owns all window state
       └─ MusicProvider             ← owns the single <audio> element
-         └─ Workspace              ← .os-root (+ .is-mobile, data-appearance); owns the stage
+         └─ ToastProvider          ← toasts (rendered fixed, outside .os-root)
+         └─ Workspace              ← .os-root (+ .is-mobile, .is-party, data-appearance, data-theme); owns the stage
             ├─ wallpaper           ← data-wallpaper from prefs
             ├─ MenuBar             ← menus, NowPlaying, clock
             ├─ FinderSidebar       ← desktop only
-            ├─ DesktopIcons        ← desktop only; full-screen layer with useSelection + right-click menu
+            ├─ DesktopIcons        ← desktop only; full-screen layer with useSelection, right-click menu, drag-to-Trash
+            ├─ Widgets             ← desktop only, when prefs.widgets
             ├─ Window × n
             │  └─ AppBody(kind, payload)
             ├─ Dock
             ├─ ContextMenu         ← when open
+            ├─ AlertDialog         ← Aqua alert (Résumé → Trash)
+            ├─ Confetti / ScreenSaver / Panic
             └─ stage overlays      ← blackout / Boot / wake / Login, and the shut-down screen
 ```
 
@@ -115,6 +127,29 @@ To add a new kind: extend `AppKind`, then `describe`, `SIZES`, `appName`, `ICONS
 Terminal look: `.os-term` in `os.css` (Geist Mono, dark background, scanlines, blinking caret). Each `Line` fades in 40ms after the previous one. `experience`/`work` windows get the graphite title bar (`.os-window--dark`).
 
 **Adding a photo:** put a resized copy (max ~2000px) in `public/photos/` and add an entry to `src/app/photos.ts`.
+
+### Theme
+`prefs.theme` is `system | light | dark` (default system). `useEffectiveTheme()` resolves it against `prefers-color-scheme` and Workspace sets `data-theme` on `.os-root`. Dark styles are one override block at the end of `os.css` (`.os-root[data-theme="dark"] …`); already-dark windows (Terminal, Experience, demos) are untouched. Toggles: sun/moon in the menu bar, View menu, System Preferences → Mode.
+
+### Pop styling
+- Window open = spring keyframe (`os-open`, 0.4s; the `opening` phase lasts 420ms). Dock magnification uses an overshoot easing; dock icons use `-webkit-box-reflect`.
+- Wallpaper swirls drift (`os-drift-a/b`, transform only).
+- Project/demo windows get `--accent` from `accentFor()` (hand-picked map in `appMeta.tsx`): tinted title bar, heading underline, tags, primary button, focus glow.
+- Glass: menu bar, menus, sidebar, widgets, toasts use `backdrop-filter`.
+
+### Easter eggs
+| Egg | Trigger | Where |
+|---|---|---|
+| Résumé → Trash | drag the Résumé.pdf desktop icon onto the dock Trash | `Desktop.tsx` (`startDrag`, `overTrash`, `AlertDialog`) |
+| Konami | ↑↑↓↓←→←→BA outside text fields | `eggs/useKonami.ts` → confetti + rainbow dock (`.is-party`) + toast |
+| Screen saver | 90s idle, not while music plays | `eggs/ScreenSaver.tsx` |
+| Developer mode | 7 logo clicks in 3s | `MenuBar.tsx` → `unlockDevMode()`; Terminal `devmode` |
+| Panic / matrix | Terminal `rm -rf /`, `matrix` | `commands.ts` emits `panic` on the bus; `eggs/Panic.tsx`, `eggs/MatrixRain.tsx` |
+| Windows fall | shake a window by its title bar (4 direction flips in 600ms) | `eggs/useShake.ts` → `wm.drop()`; Clean Up restores `fallFrom` |
+| Trash isn't empty | Trash window → Empty Trash | `eggs/trash.ts` store; files return after ~4s; dock shows a full can |
+| Calendar | click the menu-bar clock | `Calendar.tsx`; badges from role start dates + graduation |
+
+All motion-heavy eggs are skipped under `prefers-reduced-motion`.
 
 ### Selection (`useSelection.ts`)
 Used by `DesktopIcons` and the Projects folder. Click selects; Cmd/Ctrl+click toggles; Shift+click selects a range; dragging on empty space draws a rubber band (`.os-band`, fixed-position); clicking empty space clears. Double-click, Enter or Cmd/Ctrl+O opens **all** selected items; Cmd/Ctrl+A selects all; arrow keys move within the folder grid. On touch, a tap opens immediately. A plain click on one item of a multi-selection narrows it after 450ms unless a double-click follows.
@@ -193,7 +228,7 @@ Currently one company (Outrider) with 3 roles and 8 work projects total. Work pr
 - **Desktop UI:** plain CSS in `src/components/os/os.css` (Aqua-inspired, original drawing; no Apple artwork or fonts are shipped — the font stack prefers Lucida Grande if the visitor has it). Glossy icons are CSS gradient tiles with react-icons glyphs, or the project screenshot.
 - **Retro cursors:** `public/os/cursor-arrow.svg` (default), `cursor-hand.svg` (links/buttons) and `cursor-wait.svg` (while a window opens), set in `os.css`.
 - **Wallpapers / appearance:** `.os-wallpaper[data-wallpaper=…]` and `.os-root[data-appearance="graphite"]` (overrides `--hilite-*`, traffic lights, primary buttons).
-- **Per-visitor storage:** `localStorage["sv-os-prefs"]` (wallpaper, appearance) and `sessionStorage["sv-os-booted"]`; both wrapped in try/catch.
+- **Per-visitor storage (all wrapped in try/catch):** `localStorage["sv-os-prefs"]` (wallpaper, appearance, theme, sound, widgets), `localStorage["sv-os-widgets"]` (widget positions), `localStorage["sv-snake-best"]`, `sessionStorage["sv-os-booted"]`.
 - **Demos** keep their dark token-based look via `.os-demo`; `os.css` overrides their fixed `vmin` sizes to fit inside windows.
 - **Tailwind utility classes** are still used inside SnakeGame / SearchVisualizer.
 - **Global theme** (`src/app/globals.css`): CSS custom properties `--background`, `--surface`, `--surface-raised`, `--foreground`, `--muted`, `--text-dim`, `--border`, `--accent`, `--accent-hover`, `--accent-secondary`; automatic dark mode via `prefers-color-scheme: dark`.
@@ -204,7 +239,9 @@ Currently one company (Outrider) with 3 roles and 8 work projects total. Work pr
 
 | File | Used by |
 |---|---|
-| `images/personal.png` | About window — profile photo |
+| `images/avatar.jpg` | Profile photo: About window, login screen, Terminal banner (600×600 crop) |
+| `photos/cafe.jpg` | First photo in the Photos viewer |
+| `images/personal.png` | No longer used (replaced by avatar.jpg) |
 | `images/outrider.jpeg` | Referenced by `experiences[].logo` only; not rendered |
 | `images/umass.png` | Education window |
 | `images/umass-grad.jpg` | Education window + Photos (graduation photo, 643×1200) |

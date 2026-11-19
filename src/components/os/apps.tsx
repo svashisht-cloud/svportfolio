@@ -17,9 +17,13 @@ import { experiences, projects, type Project } from "@/app/portfolioData";
 import { photos } from "@/app/photos";
 import { AppIcon, EMAIL, LINKS, describe, prefersReducedMotion } from "./appMeta";
 import { MusicApp } from "./Music";
-import { WALLPAPERS, setPrefs, usePrefs } from "./prefs";
+import { WALLPAPERS, setPrefs, usePrefs, type ThemeMode } from "./prefs";
 import Terminal from "./Terminal";
 import { useSelection } from "./useSelection";
+import { tiltHandlers } from "./useTilt";
+import { TRASH_FILES, setTrashFull, useTrashFull } from "./eggs/trash";
+import { play } from "./sounds";
+import { useToast } from "./Toast";
 import { FinderList } from "./FinderSidebar";
 import { useWM } from "./WindowManager";
 import type { AppKind, AppPayload } from "./types";
@@ -122,7 +126,7 @@ function AboutApp() {
     <article className="os-doc os-about">
       <header className="os-about-head">
         <Image
-          src="/images/personal.png"
+          src="/images/avatar.jpg"
           alt="Portrait of Shubh Vashisht"
           width={104}
           height={104}
@@ -205,7 +209,7 @@ function ProjectsFolderApp() {
               aria-label={`${p.name}${p.featured ? " (featured)" : ""}`}
               {...sel.itemProps(p.name)}
             >
-              <span className="os-folder-icon">
+              <span className="os-folder-icon os-tilt" {...tiltHandlers()}>
                 <AppIcon kind="project" payload={{ project: p }} />
                 {p.featured && <span className="os-badge">★</span>}
               </span>
@@ -228,7 +232,15 @@ function ProjectApp({ project }: { project: Project }) {
     <article className="os-project">
       {project.image && (
         <div className="os-project-hero">
-          <Image src={project.image} alt={`${project.name} screenshot`} fill sizes="640px" />
+          <div className="os-tilt os-hero-card" {...tiltHandlers()}>
+            <Image
+              src={project.image}
+              alt={`${project.name} screenshot`}
+              width={0}
+              height={0}
+              sizes="560px"
+            />
+          </div>
         </div>
       )}
       <div className="os-doc">
@@ -474,7 +486,7 @@ function EducationApp() {
         <p className="os-meta">Bachelor&apos;s in Computer Science</p>
         <p className="os-edu-dates">Aug 2019 – Dec 2022</p>
         <p>Where I learned to build things that actually work, preferably on the first try.</p>
-        <p className="os-meta">Finished a month ahead of schedule.</p>
+        <p className="os-meta">Finished a semester ahead of schedule.</p>
       </div>
     </article>
   );
@@ -629,7 +641,24 @@ function PrefsApp() {
         </ul>
       </section>
       <section>
-        <h3>Appearance</h3>
+        <h3>Mode</h3>
+        <div className="os-radio-row" role="radiogroup" aria-label="Light or dark mode">
+          {(["system", "light", "dark"] as ThemeMode[]).map((t) => (
+            <label key={t} className="os-radio">
+              <input
+                type="radio"
+                name="theme"
+                checked={prefs.theme === t}
+                onChange={() => setPrefs({ theme: t })}
+              />
+              <span className={`os-radio-dot os-radio-dot--${t}`} aria-hidden />
+              {t === "system" ? "Match my computer" : t === "light" ? "Light" : "Dark"}
+            </label>
+          ))}
+        </div>
+      </section>
+      <section>
+        <h3>Accent</h3>
         <div className="os-radio-row" role="radiogroup" aria-label="Appearance">
           {(["blue", "graphite"] as const).map((a) => (
             <label key={a} className="os-radio">
@@ -724,11 +753,58 @@ function InfoApp({ payload }: { payload?: AppPayload }) {
 }
 
 function TrashApp() {
+  const full = useTrashFull();
+  const toast = useToast();
+  const [crumpling, setCrumpling] = useState(false);
+
+  const empty = () => {
+    play("trash");
+    setCrumpling(true);
+    window.setTimeout(() => {
+      setCrumpling(false);
+      setTrashFull(false);
+    }, 450);
+    // They always come back.
+    window.setTimeout(() => {
+      setTrashFull(true);
+      toast("The files are back in the Trash. Some bugs can't be deleted.", "🗑");
+    }, 4500);
+  };
+
   return (
-    <div className="os-doc os-center">
-      <AppIcon kind="trash" />
-      <p>The Trash is empty.</p>
-      <p className="os-meta">Unlike my commit history.</p>
+    <div className="os-trash">
+      <div className="os-toolbar">
+        <button type="button" className="aqua-btn" onClick={empty} disabled={!full || crumpling}>
+          Empty Trash
+        </button>
+        <span className="os-toolbar-note">{full ? `${TRASH_FILES.length} items` : "0 items"}</span>
+      </div>
+      {full ? (
+        <table className={`os-playlist os-trash-list${crumpling ? " is-crumpling" : ""}`}>
+          <thead>
+            <tr>
+              <th>Name</th>
+              <th>Kind</th>
+              <th>Size</th>
+            </tr>
+          </thead>
+          <tbody>
+            {TRASH_FILES.map((f) => (
+              <tr key={f.name}>
+                <td>{f.name}</td>
+                <td>{f.kind}</td>
+                <td>{f.size}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      ) : (
+        <div className="os-doc os-center">
+          <AppIcon kind="trash" />
+          <p>The Trash is empty.</p>
+          <p className="os-meta">For now.</p>
+        </div>
+      )}
     </div>
   );
 }
@@ -748,6 +824,11 @@ function HelpApp() {
         </li>
         <li>Right-click the desktop for more options, including a new wallpaper.</li>
         <li>Open Terminal from the dock and type &lsquo;help&rsquo;.</li>
+        <li>Click the moon or sun in the menu bar to switch between dark and light mode.</li>
+        <li>
+          Secrets: there are 8 hidden things on this desktop. The keyboard, the logo, the clock and
+          the Trash are good places to start.
+        </li>
         <li>In Photos, use the left and right arrow keys to flip through pictures.</li>
         <li>Snake and the Search Visualizer run right here: open them from the dock.</li>
         <li>Press Escape on a focused window to close it.</li>

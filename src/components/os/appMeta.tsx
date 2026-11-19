@@ -90,7 +90,7 @@ const SIZES: Record<AppKind, [number, number]> = {
   resume: [660, 760],
   contact: [540, 460],
   demo: [560, 680],
-  trash: [400, 280],
+  trash: [460, 300],
   help: [480, 440],
   photos: [780, 620],
   terminal: [660, 440],
@@ -197,6 +197,25 @@ export function AppIcon({
       <Icon />
     </span>
   );
+}
+
+/** Hand-picked accent per project, matched to its screenshot. */
+const ACCENTS: Record<string, string> = {
+  "Forte Resume": "#6366f1",
+  Arcfield: "#2fd27a",
+  "AI Interviewer": "#0ea5e9",
+  "Search Algorithm Viz": "#2f80ed",
+  "Snake Game": "#34a853",
+  "Moral-Fibre": "#d93838",
+  PySvap: "#3776ab",
+  "Windows XP Clone": "#1f6fd6",
+  "Discord Bot": "#5865f2",
+  "Personal Portfolio (Old)": "#64748b",
+};
+
+export function accentFor(payload?: AppPayload): string | undefined {
+  const name = payload?.project?.name;
+  return name ? (ACCENTS[name] ?? "#2f78de") : undefined;
 }
 
 export function isMobileNow() {

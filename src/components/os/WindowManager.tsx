@@ -11,6 +11,7 @@ import {
   isMobileNow,
   prefersReducedMotion,
 } from "./appMeta";
+import { play } from "./sounds";
 
 interface State {
   wins: WinState[];
@@ -63,8 +64,10 @@ export interface WMActions {
   resize(id: string, w: number, h: number): void;
   /** Close every window (used by Log Out and Restart). */
   closeAll(): void;
-  /** Re-cascade all visible windows into tidy positions. */
+  /** Re-cascade all visible windows into tidy positions (or back to where they fell from). */
   cleanUp(): void;
+  /** Easter egg: every visible window falls to the bottom of the screen. */
+  drop(): void;
 }
 
 const StateCtx = createContext<State>({ wins: [], zTop: 0 });
@@ -149,13 +152,15 @@ export function WindowManagerProvider({ children }: { children: React.ReactNode 
             my: 0,
           },
         });
-        later(280, () => dispatch({ type: "patch", id, patch: { phase: "open" } }));
+        later(420, () => dispatch({ type: "patch", id, patch: { phase: "open" } }));
+        play("open");
         // Brief spinning-wheel cursor while the window "loads".
         const root = document.documentElement;
         root.classList.add("os-busy");
         later(300, () => root.classList.remove("os-busy"));
       },
       close(id) {
+        play("close");
         dispatch({ type: "patch", id, patch: { phase: "closing" } });
         later(180, () => dispatch({ type: "remove", id }));
       },
@@ -169,6 +174,7 @@ export function WindowManagerProvider({ children }: { children: React.ReactNode 
         const ty = t ? t.top + t.height / 2 : window.innerHeight;
         const mx = tx - (w.x + w.w / 2);
         const my = ty - (w.y + w.h / 2);
+        play("minimize");
         dispatch({ type: "patch", id, patch: { phase: "minimizing", mx, my } });
         later(420, () =>
           dispatch({ type: "patch", id, patch: { minimized: true, phase: "open" } }),
@@ -197,7 +203,24 @@ export function WindowManagerProvider({ children }: { children: React.ReactNode 
         focus(id);
       },
       move(id, x, y) {
-        dispatch({ type: "patch", id, patch: { x, y, maximized: false } });
+        dispatch({ type: "patch", id, patch: { x, y, maximized: false, tilt: undefined } });
+      },
+      drop() {
+        if (isMobileNow()) return;
+        const floor = window.innerHeight - DOCK_H - 34;
+        for (const w of stateRef.current.wins) {
+          if (w.minimized) continue;
+          dispatch({
+            type: "patch",
+            id: w.id,
+            patch: {
+              fallFrom: w.fallFrom ?? { x: w.x, y: w.y, w: w.w, h: w.h },
+              y: floor - Math.random() * 60,
+              tilt: (Math.random() - 0.5) * 10,
+              maximized: false,
+            },
+          });
+        }
       },
       resize(id, w, h) {
         dispatch({ type: "patch", id, patch: { w, h, maximized: false } });
@@ -215,6 +238,14 @@ export function WindowManagerProvider({ children }: { children: React.ReactNode 
           .filter((w) => !w.minimized)
           .sort((a, b) => a.z - b.z);
         visible.forEach((w, i) => {
+          if (w.fallFrom) {
+            dispatch({
+              type: "patch",
+              id: w.id,
+              patch: { ...w.fallFrom, fallFrom: undefined, tilt: undefined },
+            });
+            return;
+          }
           const offset = (i % 8) * 28;
           dispatch({
             type: "patch",

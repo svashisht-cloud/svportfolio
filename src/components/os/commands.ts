@@ -1,5 +1,6 @@
 import { experiences, projects } from "@/app/portfolioData";
 import { EMAIL, LINKS } from "./appMeta";
+import { emit, isDevMode } from "./eggs/bus";
 import type { AppKind, AppPayload } from "./types";
 
 export type Tone = "ok" | "err" | "dim" | "accent" | "title";
@@ -22,6 +23,8 @@ export interface CommandResult {
   clear?: boolean;
   /** Ask for a masked "password" next; the follow-up input goes to this handler. */
   password?: (input: string) => CommandResult;
+  /** Play the falling-characters animation in the Terminal. */
+  matrix?: boolean;
 }
 
 interface Target {
@@ -115,6 +118,7 @@ export const COMMAND_NAMES = [
   "sudo",
   "echo",
   "pwd",
+  "matrix",
 ];
 
 function uptime(startedAt: number) {
@@ -154,12 +158,17 @@ export function banner(startedAt: number): TermLine[] {
   return lines;
 }
 
-function skills(): TermLine[] {
+/** Tech used across projects and work, most-used first. Shared with the tech-stack widget. */
+export function skillCounts(): [string, number][] {
   const counts = new Map<string, number>();
   const add = (tags?: string[]) => tags?.forEach((t) => counts.set(t, (counts.get(t) ?? 0) + 1));
   projects.forEach((p) => add(p.techStack));
   experiences.forEach((e) => e.roles.forEach((r) => r.projects.forEach((w) => add(w.techStack))));
-  const sorted = [...counts.entries()].sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0]));
+  return [...counts.entries()].sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0]));
+}
+
+function skills(): TermLine[] {
+  const sorted = skillCounts();
   const max = sorted[0]?.[1] ?? 1;
   return sorted.map(([name, n]) => ({
     text: `${name.padEnd(16)} ${"█".repeat(Math.max(1, Math.round((n / max) * 20)))} ${n}`,
@@ -285,7 +294,28 @@ export function run(input: string, ctx: CommandContext): CommandResult {
           { text: `youtube   ${LINKS.youtube}`, href: LINKS.youtube },
         ],
       };
+    case "rm": {
+      if (/-\w*r\w*f|-\w*f\w*r/.test(arg) && /(^|\s)\/(\*)?(\s|$)/.test(`${arg} `)) {
+        window.setTimeout(() => emit("panic"), 300);
+        return { lines: [{ text: "Deleting everything…", tone: "err" }] };
+      }
+      return { lines: [{ text: "rm: permission denied (this is a portfolio)", tone: "err" }] };
+    }
+    case "matrix":
+      return { lines: [{ text: "Wake up, Neo…", tone: "ok" }], matrix: true };
+    case "devmode":
+      if (!isDevMode()) return { lines: [{ text: "zsh: command not found: devmode", tone: "err" }] };
+      return {
+        lines: [
+          { text: "Developer mode: ON", tone: "ok" },
+          { text: "  build        ✓ 0 errors, 0 warnings (suspiciously clean)" },
+          { text: "  coffee       ████████░░ 80%" },
+          { text: "  rubber duck  online" },
+          { text: "Secret commands: matrix, rm -rf /, sudo hire-me", tone: "dim" },
+        ],
+      };
     case "sudo": {
+      if (/^rm\b/.test(arg)) return run(arg, ctx);
       if (arg.toLowerCase().replace(/\s+/g, "") === "hire-me" || arg.toLowerCase() === "hireme") {
         return {
           lines: [],

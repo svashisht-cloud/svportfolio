@@ -1,6 +1,8 @@
 "use client";
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
+import Image from "next/image";
 import { banner, complete, run, type CommandResult, type TermLine } from "./commands";
+import MatrixRain from "./eggs/MatrixRain";
 import { useWM } from "./WindowManager";
 
 /** When the page was loaded, for the banner's "uptime". */
@@ -27,14 +29,23 @@ export default function Terminal() {
   const [history, setHistory] = useState<string[]>([]);
   const [histIndex, setHistIndex] = useState<number | null>(null);
   const [password, setPassword] = useState<CommandResult["password"]>();
+  // The avatar sits beside the start-up banner until the screen is cleared.
+  const [showAvatar, setShowAvatar] = useState(true);
+  const [matrix, setMatrix] = useState(false);
+  const stopMatrix = useCallback(() => setMatrix(false), []);
   const inputRef = useRef<HTMLInputElement>(null);
   const endRef = useRef<HTMLDivElement>(null);
 
+  // Keep the prompt in view by scrolling only the Terminal's own window body
+  // (scrollIntoView would also scroll the desktop when the window hangs off-screen).
   useEffect(() => {
-    endRef.current?.scrollIntoView({ block: "end" });
+    const body = endRef.current?.closest(".os-window-body");
+    if (body) body.scrollTop = body.scrollHeight;
   }, [entries]);
 
   const append = (result: CommandResult, echo: Entry) => {
+    if (result.clear) setShowAvatar(false);
+    if (result.matrix) setMatrix(true);
     setEntries((prev) => [
       ...(result.clear ? [] : [...prev, echo]),
       ...result.lines.map((line) => ({ kind: "out" as const, line })),
@@ -83,6 +94,7 @@ export default function Terminal() {
     } else if (e.key === "l" && e.ctrlKey) {
       e.preventDefault();
       setEntries([]);
+      setShowAvatar(false);
     } else if (e.key === "c" && e.ctrlKey) {
       e.preventDefault();
       setEntries((prev) => [...prev, { kind: "cmd", text: `${input}^C` }]);
@@ -99,6 +111,16 @@ export default function Terminal() {
         if (!window.getSelection()?.toString()) inputRef.current?.focus();
       }}
     >
+      {matrix && <MatrixRain onDone={stopMatrix} />}
+      {showAvatar && (
+        <Image
+          src="/images/avatar.jpg"
+          alt=""
+          width={72}
+          height={72}
+          className="os-term-avatar"
+        />
+      )}
       <div role="log" aria-live="polite" aria-label="Terminal output">
         {entries.map((entry, i) =>
           entry.kind === "cmd" ? (
