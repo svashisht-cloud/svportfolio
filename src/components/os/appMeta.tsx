@@ -3,6 +3,7 @@ import Image from "next/image";
 import type { IconType } from "react-icons";
 import {
   FaBriefcase,
+  FaCog,
   FaEnvelope,
   FaFilePdf,
   FaFolder,
@@ -10,8 +11,11 @@ import {
   FaGithub,
   FaGraduationCap,
   FaImages,
+  FaInfoCircle,
   FaLinkedin,
+  FaMusic,
   FaQuestion,
+  FaTerminal,
   FaTrashAlt,
   FaUser,
   FaYoutube,
@@ -59,6 +63,19 @@ export function describe(kind: AppKind, payload?: AppPayload): { id: string; tit
       return { id: "help", title: "Portfolio Help" };
     case "photos":
       return { id: "photos", title: "Photos" };
+    case "terminal":
+      return { id: "terminal", title: "Terminal — zsh" };
+    case "prefs":
+      return { id: "prefs", title: "System Preferences" };
+    case "music":
+      return { id: "music", title: "Music" };
+    case "folder":
+      return { id: `folder:${payload?.label}`, title: payload?.label ?? "untitled folder" };
+    case "info":
+      return {
+        id: `info:${payload?.label ?? "site"}`,
+        title: `${payload?.label ?? "This Site"} Info`,
+      };
   }
 }
 
@@ -76,6 +93,11 @@ const SIZES: Record<AppKind, [number, number]> = {
   trash: [400, 280],
   help: [480, 440],
   photos: [780, 620],
+  terminal: [660, 440],
+  prefs: [580, 470],
+  music: [540, 470],
+  folder: [420, 300],
+  info: [320, 400],
 };
 
 export function defaultSize(kind: AppKind, payload?: AppPayload): [number, number] {
@@ -97,6 +119,12 @@ export function appName(kind: AppKind | undefined, payload?: AppPayload): string
       return "Help Viewer";
     case "photos":
       return "Photos";
+    case "terminal":
+      return "Terminal";
+    case "prefs":
+      return "System Preferences";
+    case "music":
+      return "Music";
     case "demo":
       return payload?.project?.name ?? "Demo";
     case "project":
@@ -132,6 +160,11 @@ const ICONS: Record<string, IconSpec> = {
   linkedin: { icon: FaLinkedin, c1: "#7cc0ff", c2: "#0a5cb8" },
   youtube: { icon: FaYoutube, c1: "#ff8a80", c2: "#c4100b" },
   photos: { icon: FaImages, c1: "#ffe08a", c2: "#e0631d" },
+  terminal: { icon: FaTerminal, c1: "#5a5f66", c2: "#101215" },
+  prefs: { icon: FaCog, c1: "#e2e5ea", c2: "#6b7480" },
+  music: { icon: FaMusic, c1: "#ffb3e0", c2: "#8a3fd1" },
+  folder: { icon: FaFolder, c1: "#a8d4ff", c2: "#2a7de1" },
+  info: { icon: FaInfoCircle, c1: "#c9e3ff", c2: "#3a78c9" },
 };
 
 /** Glossy rounded tile icon. Project-backed windows use the project's screenshot. */

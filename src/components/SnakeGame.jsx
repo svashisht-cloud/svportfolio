@@ -97,6 +97,8 @@ const SnakeGame = () => {
 
   // Handle keyboard input
   function handleKeydown(e) {
+    // Ignore typing in text fields (e.g. the Terminal window).
+    if (e.target instanceof HTMLElement && (e.target.closest("input, textarea, select") || e.target.isContentEditable)) return;
     // Set default direction if no key is pressed (e.g., going down)
     inputDirRef.current = { x: 0, y: 1 };
     switch (e.key) {

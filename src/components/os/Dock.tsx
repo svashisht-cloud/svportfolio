@@ -28,6 +28,8 @@ const APPS: DockItem[] = [
   })),
   { key: "resume", label: "Résumé", kind: "resume" },
   { key: "photos", label: "Photos", kind: "photos" },
+  { key: "music", label: "Music", kind: "music" },
+  { key: "terminal", label: "Terminal", kind: "terminal" },
   { key: "contact", label: "Mail", kind: "contact" },
 ];
 

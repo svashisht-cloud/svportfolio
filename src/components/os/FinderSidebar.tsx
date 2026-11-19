@@ -13,6 +13,8 @@ const FAVORITES: { kind: AppKind; label: string }[] = [
   { kind: "education", label: "Education" },
   { kind: "resume", label: "Résumé" },
   { kind: "photos", label: "Photos" },
+  { kind: "music", label: "Music" },
+  { kind: "terminal", label: "Terminal" },
   { kind: "contact", label: "Contact" },
 ];
 

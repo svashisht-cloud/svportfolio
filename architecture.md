@@ -17,6 +17,7 @@ src/
     page.tsx          — renders <Desktop/>; nothing else
     portfolioData.tsx — all content: projects[] and experiences[] (+ types)
     photos.ts         — photos[] shown in the Photos window ({ src, alt, caption?, w, h })
+    songs.ts          — songs[] for the Music window ({ title, artist, src }); files in public/music/
     globals.css       — Tailwind import, CSS custom properties (still used by the demos)
     fonts.ts          — Kode Mono font export
   components/
@@ -30,11 +31,19 @@ src/
       MenuBar.tsx       — top menu bar with working menus and clock
       Dock.tsx          — magnifying dock, running dots, bounce, minimized-window tiles
       types.ts          — AppKind, AppPayload, WinState
+      Terminal.tsx      — Terminal window UI (prompt, history, Tab completion)
+      commands.ts       — pure command handlers for the Terminal (run, complete, banner, findTarget)
+      BootScreen.tsx    — Boot (first visit per tab) and Login (after Log Out)
+      ContextMenu.tsx   — right-click menu (fixed position, clamped to the viewport)
+      Music.tsx         — MusicProvider (single <audio>), MusicApp window, NowPlaying menu-bar item
+      prefs.ts          — wallpaper + appearance store (useSyncExternalStore, localStorage)
+      useSelection.ts   — Finder-style selection hook (click, Cmd/Ctrl, Shift, rubber band, keys)
       os.css            — all desktop styling (Aqua chrome, cursors, animations, mobile)
     SnakeGame.jsx     + SnakeGame.css
     SearchVisualizer.jsx + SearchVisualizer.css
 public/
-  os/                 — cursor-arrow.svg, cursor-hand.svg (retro cursors)
+  os/                 — cursor-arrow.svg, cursor-hand.svg, cursor-wait.svg (retro cursors)
+  music/              — mp3s for the Music window (empty until songs are added)
   images/             — image assets
   resume.pdf
 ```
@@ -45,15 +54,27 @@ public/
 Home (page.tsx)
 └─ Desktop
    └─ WindowManagerProvider        ← owns all window state
-      └─ Workspace                 ← .os-root; adds .is-mobile below 768px
-         ├─ MenuBar                ← logo/app/File/View/Go/Window/Help menus + clock
-         ├─ FinderSidebar          ← desktop only; FinderList inside a brushed-metal panel
-         ├─ DesktopIcons           ← desktop only; double-click (or Enter) to open
-         ├─ Window × n             ← one per open window
-         │  └─ AppBody(kind, payload)
-         ├─ Dock
-         ├─ wake overlay           ← screen-on fade at load (0.6s; .os-root.is-waking)
-         └─ shut-down overlay      ← from the logo menu
+      └─ MusicProvider             ← owns the single <audio> element
+         └─ Workspace              ← .os-root (+ .is-mobile, data-appearance); owns the stage
+            ├─ wallpaper           ← data-wallpaper from prefs
+            ├─ MenuBar             ← menus, NowPlaying, clock
+            ├─ FinderSidebar       ← desktop only
+            ├─ DesktopIcons        ← desktop only; full-screen layer with useSelection + right-click menu
+            ├─ Window × n
+            │  └─ AppBody(kind, payload)
+            ├─ Dock
+            ├─ ContextMenu         ← when open
+            └─ stage overlays      ← blackout / Boot / wake / Login, and the shut-down screen
+```
+
+### Stages (`Workspace`)
+
+`pending` (one black frame) → `boot` (first visit in this tab; skipped if `sessionStorage["sv-os-booted"]` is set or reduced motion) → `waking` (0.65s screen-on fade; About opens, plus Finder on phones) → `desktop`.
+- **Log Out Shubh…** (logo menu): closes all windows → `loggedOut` (Login panel) → click/Enter → `waking`.
+- **Restart…**: closes all windows → `boot`.
+- **Shut Down…**: black overlay with a "Turn it back on" button.
+
+```
 ```
 
 ### Window manager (`WindowManager.tsx`)
@@ -83,6 +104,11 @@ State: `{ wins: WinState[], zTop }`. `WinState` holds `id, kind, title, payload,
 | `resume` | Toolbar (Download / Open in new tab) + PDF iframe |
 | `contact` | Mail compose form that opens a `mailto:` link |
 | `trash`, `help` | Joke / usage tips |
+| `terminal` | Terminal: banner + commands from `commands.ts` (help, whoami, ls, open, run, skills, cat resume, contact, history, date, clear, sudo hire-me). ↑/↓ history, Tab completion, Ctrl+L / Ctrl+C |
+| `prefs` | System Preferences: 6 CSS wallpapers + Blue/Graphite appearance (`prefs.ts`) |
+| `music` | Music: transport, LCD display with scrubber, volume, playlist. Playback lives in `MusicProvider`, so it continues when the window is closed |
+| `folder` | An "untitled folder" made from the desktop right-click menu (in memory only) |
+| `info` | Get Info: about the site (no payload) or about a desktop icon (`{ label, target }`) |
 
 To add a new kind: extend `AppKind`, then `describe`, `SIZES`, `appName`, `ICONS` in `appMeta.tsx`, and the `AppBody` switch.
 
@@ -90,13 +116,21 @@ Terminal look: `.os-term` in `os.css` (Geist Mono, dark background, scanlines, b
 
 **Adding a photo:** put a resized copy (max ~2000px) in `public/photos/` and add an entry to `src/app/photos.ts`.
 
+### Selection (`useSelection.ts`)
+Used by `DesktopIcons` and the Projects folder. Click selects; Cmd/Ctrl+click toggles; Shift+click selects a range; dragging on empty space draws a rubber band (`.os-band`, fixed-position); clicking empty space clears. Double-click, Enter or Cmd/Ctrl+O opens **all** selected items; Cmd/Ctrl+A selects all; arrow keys move within the folder grid. On touch, a tap opens immediately. A plain click on one item of a multi-selection narrows it after 450ms unless a double-click follows.
+
+### Right-click menu
+On the wallpaper: New Folder, Change Desktop Background…, Clean Up (`wm.cleanUp()`), Open Terminal, Get Info. On a desktop icon: Open (N Items), Get Info. Inside windows the browser's own menu is kept.
+
 ### Window chrome (`Window.tsx`)
 - Drag by title bar (pointer capture), clamped to the viewport; resize from the bottom-right grip (min 300×200). While dragging, `html.os-dragging` disables iframe pointer events.
 - Traffic lights: close, minimize, zoom (zoom hidden on mobile). Double-click title bar minimizes. Escape closes a focused window.
-- `role="dialog"`, focused on mount.
+- `role="dialog"`. When a window becomes frontmost (and focus isn't already inside it), it focuses its `[data-autofocus]` element (e.g. the Terminal prompt) or itself.
+- Variants by kind: `.os-window--dark` (experience, work, terminal), `.os-window--metal` (music).
+- `WindowManager` also has `closeAll()` (Log Out / Restart) and `cleanUp()`; `launch()` briefly adds `html.os-busy` for the spinning-wheel cursor.
 
 ### Dock (`Dock.tsx`)
-Projects, About, Experience, one item per project with a `demoComponent`, Résumé, Photos, Mail | GitHub, LinkedIn, YouTube | minimized windows | Trash. Magnification uses item centres measured on pointer-enter (mouse only). Items bounce on first launch; a triangle marks open windows.
+Projects, About, Experience, one item per project with a `demoComponent`, Résumé, Photos, Music, Terminal, Mail | GitHub, LinkedIn, YouTube | minimized windows | Trash. Magnification uses item centres measured on pointer-enter (mouse only). Items bounce on first launch; a triangle marks open windows.
 
 ### FinderList (`FinderSidebar.tsx`)
 Search field (filters projects and work projects by name, tech stack, description), Favorites, Projects (★ = featured), Experience (role groups with disclosure triangles; newest role expanded). The item for the focused window is highlighted.
@@ -157,7 +191,9 @@ Currently one company (Outrider) with 3 roles and 8 work projects total. Work pr
 ## Styling
 
 - **Desktop UI:** plain CSS in `src/components/os/os.css` (Aqua-inspired, original drawing; no Apple artwork or fonts are shipped — the font stack prefers Lucida Grande if the visitor has it). Glossy icons are CSS gradient tiles with react-icons glyphs, or the project screenshot.
-- **Retro cursors:** `public/os/cursor-arrow.svg` (default) and `cursor-hand.svg` (links/buttons), set in `os.css`.
+- **Retro cursors:** `public/os/cursor-arrow.svg` (default), `cursor-hand.svg` (links/buttons) and `cursor-wait.svg` (while a window opens), set in `os.css`.
+- **Wallpapers / appearance:** `.os-wallpaper[data-wallpaper=…]` and `.os-root[data-appearance="graphite"]` (overrides `--hilite-*`, traffic lights, primary buttons).
+- **Per-visitor storage:** `localStorage["sv-os-prefs"]` (wallpaper, appearance) and `sessionStorage["sv-os-booted"]`; both wrapped in try/catch.
 - **Demos** keep their dark token-based look via `.os-demo`; `os.css` overrides their fixed `vmin` sizes to fit inside windows.
 - **Tailwind utility classes** are still used inside SnakeGame / SearchVisualizer.
 - **Global theme** (`src/app/globals.css`): CSS custom properties `--background`, `--surface`, `--surface-raised`, `--foreground`, `--muted`, `--text-dim`, `--border`, `--accent`, `--accent-hover`, `--accent-secondary`; automatic dark mode via `prefers-color-scheme: dark`.
@@ -174,7 +210,8 @@ Currently one company (Outrider) with 3 roles and 8 work projects total. Work pr
 | `images/umass-grad.jpg` | Education window + Photos (graduation photo, 643×1200) |
 | `images/arcfield.png` | Arcfield project icon + window screenshot (crop of the live site) |
 | `resume.pdf` | Résumé window (iframe + download), logo menu, desktop icon |
-| `os/cursor-arrow.svg`, `os/cursor-hand.svg` | Retro cursors (os.css) |
+| `os/cursor-arrow.svg`, `os/cursor-hand.svg`, `os/cursor-wait.svg` | Retro cursors (os.css) |
+| `music/` | Songs for the Music window (listed in `src/app/songs.ts`); empty for now |
 | `images/forte2.png` | Forte Resume project icon + window screenshot |
 | `images/MockLoop1.png` | AI Interviewer project icon + window screenshot |
 | `images/windowIcon.png` | Windows XP Clone project icon + window screenshot |

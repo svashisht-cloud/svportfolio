@@ -1,6 +1,7 @@
 "use client";
 import { useEffect, useRef, useState } from "react";
 import { appName, LINKS } from "./appMeta";
+import { NowPlaying } from "./Music";
 import { useWM, useWMState } from "./WindowManager";
 
 type MenuEntry =
@@ -37,7 +38,15 @@ function useClock() {
 
 const openTab = (url: string) => window.open(url, "_blank", "noopener,noreferrer");
 
-export default function MenuBar({ onShutDown }: { onShutDown: () => void }) {
+export default function MenuBar({
+  onShutDown,
+  onRestart,
+  onLogOut,
+}: {
+  onShutDown: () => void;
+  onRestart: () => void;
+  onLogOut: () => void;
+}) {
   const wm = useWM();
   const { wins, focused } = useWMState();
   const [open, setOpen] = useState<string | null>(null);
@@ -74,12 +83,17 @@ export default function MenuBar({ onShutDown }: { onShutDown: () => void }) {
       aria: "System menu",
       items: [
         { label: "About This Developer", run: () => wm.launch("about") },
+        { label: "About This Site", run: () => wm.launch("info") },
+        "sep",
+        { label: "System Preferences…", run: () => wm.launch("prefs") },
         "sep",
         { label: "View Résumé", run: () => wm.launch("resume") },
         { label: "Download Résumé", run: downloadResume },
         "sep",
-        { label: "Restart…", run: () => window.location.reload() },
+        { label: "Restart…", run: onRestart },
         { label: "Shut Down…", run: onShutDown },
+        "sep",
+        { label: "Log Out Shubh…", run: onLogOut },
       ],
     },
     {
@@ -102,6 +116,7 @@ export default function MenuBar({ onShutDown }: { onShutDown: () => void }) {
       aria: "File menu",
       desktopOnly: true,
       items: [
+        { label: "New Terminal Window", run: () => wm.launch("terminal") },
         { label: "New Message", run: () => wm.launch("contact") },
         { label: "Open Projects Folder", run: () => wm.launch("projects") },
         "sep",
@@ -217,8 +232,9 @@ export default function MenuBar({ onShutDown }: { onShutDown: () => void }) {
           </div>
         ))}
       </nav>
-      <div className="os-menubar-right" aria-label="Clock">
-        {clock}
+      <div className="os-menubar-right">
+        <NowPlaying />
+        <span aria-label="Clock">{clock}</span>
       </div>
     </header>
   );

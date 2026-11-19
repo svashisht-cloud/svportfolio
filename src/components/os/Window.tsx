@@ -27,10 +27,15 @@ export default function Window({
   const gesture = useRef<Gesture | null>(null);
   const [moving, setMoving] = useState(false);
 
-  // Move keyboard focus into a newly opened window.
+  // Move keyboard focus into a newly opened window: its marked input if it has one
+  // (e.g. the Terminal prompt), otherwise the window itself.
+  // Also when an existing window is brought to the front from elsewhere (dock, menu, sidebar).
   useEffect(() => {
-    ref.current?.focus({ preventScroll: true });
-  }, []);
+    const el = ref.current;
+    if (!focused || !el || el.contains(document.activeElement)) return;
+    const target = el.querySelector<HTMLElement>("[data-autofocus]") ?? el;
+    target.focus({ preventScroll: true });
+  }, [focused]);
 
   const begin = (e: React.PointerEvent, g: Gesture) => {
     e.currentTarget.setPointerCapture(e.pointerId);
@@ -99,7 +104,10 @@ export default function Window({
         "os-window",
         `phase-${win.phase}`,
         focused ? "is-focused" : "is-inactive",
-        win.kind === "experience" || win.kind === "work" ? "os-window--dark" : "",
+        win.kind === "experience" || win.kind === "work" || win.kind === "terminal"
+          ? "os-window--dark"
+          : "",
+        win.kind === "music" ? "os-window--metal" : "",
         moving ? "is-moving" : "",
       ].join(" ")}
       style={style}

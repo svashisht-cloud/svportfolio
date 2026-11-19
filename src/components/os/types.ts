@@ -13,13 +13,22 @@ export type AppKind =
   | "demo"
   | "trash"
   | "help"
-  | "photos";
+  | "photos"
+  | "terminal"
+  | "prefs"
+  | "music"
+  | "folder"
+  | "info";
 
 export interface AppPayload {
   project?: Project;
   work?: WorkProject;
   company?: string;
   role?: Role;
+  /** Name of an untitled desktop folder, or the item a Get Info window describes. */
+  label?: string;
+  /** For Get Info on a desktop icon: the app that icon opens. */
+  target?: AppKind;
 }
 
 export type WinPhase = "opening" | "open" | "closing" | "minimizing" | "restoring";

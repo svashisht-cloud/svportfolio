@@ -61,6 +61,10 @@ export interface WMActions {
   toggleMaximize(id: string): void;
   move(id: string, x: number, y: number): void;
   resize(id: string, w: number, h: number): void;
+  /** Close every window (used by Log Out and Restart). */
+  closeAll(): void;
+  /** Re-cascade all visible windows into tidy positions. */
+  cleanUp(): void;
 }
 
 const StateCtx = createContext<State>({ wins: [], zTop: 0 });
@@ -146,6 +150,10 @@ export function WindowManagerProvider({ children }: { children: React.ReactNode 
           },
         });
         later(280, () => dispatch({ type: "patch", id, patch: { phase: "open" } }));
+        // Brief spinning-wheel cursor while the window "loads".
+        const root = document.documentElement;
+        root.classList.add("os-busy");
+        later(300, () => root.classList.remove("os-busy"));
       },
       close(id) {
         dispatch({ type: "patch", id, patch: { phase: "closing" } });
@@ -193,6 +201,31 @@ export function WindowManagerProvider({ children }: { children: React.ReactNode 
       },
       resize(id, w, h) {
         dispatch({ type: "patch", id, patch: { w, h, maximized: false } });
+      },
+      closeAll() {
+        for (const w of stateRef.current.wins) {
+          dispatch({ type: "patch", id: w.id, patch: { phase: "closing" } });
+          later(180, () => dispatch({ type: "remove", id: w.id }));
+        }
+      },
+      cleanUp() {
+        if (isMobileNow()) return;
+        const area = workArea();
+        const visible = stateRef.current.wins
+          .filter((w) => !w.minimized)
+          .sort((a, b) => a.z - b.z);
+        visible.forEach((w, i) => {
+          const offset = (i % 8) * 28;
+          dispatch({
+            type: "patch",
+            id: w.id,
+            patch: {
+              x: clamp(area.x + 24 + offset, area.x, area.x + area.w - w.w),
+              y: clamp(area.y + 16 + offset, area.y, area.y + area.h - w.h),
+              maximized: false,
+            },
+          });
+        });
       },
     };
   }, []);

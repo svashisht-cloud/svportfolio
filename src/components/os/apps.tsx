@@ -15,7 +15,11 @@ import {
 } from "react-icons/fa";
 import { experiences, projects, type Project } from "@/app/portfolioData";
 import { photos } from "@/app/photos";
-import { AppIcon, EMAIL, LINKS, prefersReducedMotion } from "./appMeta";
+import { AppIcon, EMAIL, LINKS, describe, prefersReducedMotion } from "./appMeta";
+import { MusicApp } from "./Music";
+import { WALLPAPERS, setPrefs, usePrefs } from "./prefs";
+import Terminal from "./Terminal";
+import { useSelection } from "./useSelection";
 import { FinderList } from "./FinderSidebar";
 import { useWM } from "./WindowManager";
 import type { AppKind, AppPayload } from "./types";
@@ -74,6 +78,7 @@ const SHORTCUTS: { kind: AppKind; label: string }[] = [
   { kind: "education", label: "Education" },
   { kind: "resume", label: "Résumé" },
   { kind: "photos", label: "Photos" },
+  { kind: "music", label: "Music" },
   { kind: "contact", label: "Mail" },
 ];
 
@@ -173,17 +178,32 @@ function AboutApp() {
   );
 }
 
+const PROJECT_KEYS = projects.map((p) => p.name);
+
 function ProjectsFolderApp() {
   const wm = useWM();
+  const sel = useSelection(
+    PROJECT_KEYS,
+    (names) =>
+      names.forEach((name) => {
+        const project = projects.find((p) => p.name === name);
+        if (project) wm.launch("project", { project });
+      }),
+    { arrows: true },
+  );
+  const status = sel.selected.length
+    ? `${sel.selected.length} of ${projects.length} selected · double-click to open`
+    : `${projects.length} items · double-click to open`;
   return (
     <div className="os-folder">
-      <ul className="os-folder-grid">
+      <ul className="os-folder-grid" {...sel.containerProps} aria-label="Projects">
         {projects.map((p) => (
           <li key={p.name}>
             <button
               type="button"
               className="os-folder-item"
-              onClick={() => wm.launch("project", { project: p })}
+              aria-label={`${p.name}${p.featured ? " (featured)" : ""}`}
+              {...sel.itemProps(p.name)}
             >
               <span className="os-folder-icon">
                 <AppIcon kind="project" payload={{ project: p }} />
@@ -194,7 +214,8 @@ function ProjectsFolderApp() {
           </li>
         ))}
       </ul>
-      <footer className="os-statusbar">{projects.length} items</footer>
+      <footer className="os-statusbar">{status}</footer>
+      {sel.band && <div className="os-band" style={sel.band} aria-hidden />}
     </div>
   );
 }
@@ -584,6 +605,124 @@ function PhotosApp() {
   );
 }
 
+function PrefsApp() {
+  const prefs = usePrefs();
+  return (
+    <div className="os-prefs">
+      <section>
+        <h3>Desktop picture</h3>
+        <ul className="os-wall-grid" role="radiogroup" aria-label="Desktop picture">
+          {WALLPAPERS.map((w) => (
+            <li key={w.id}>
+              <button
+                type="button"
+                role="radio"
+                aria-checked={prefs.wallpaper === w.id}
+                className="os-wall-choice"
+                onClick={() => setPrefs({ wallpaper: w.id })}
+              >
+                <span className="os-wall-swatch os-wallpaper" data-wallpaper={w.id} aria-hidden />
+                <span>{w.name}</span>
+              </button>
+            </li>
+          ))}
+        </ul>
+      </section>
+      <section>
+        <h3>Appearance</h3>
+        <div className="os-radio-row" role="radiogroup" aria-label="Appearance">
+          {(["blue", "graphite"] as const).map((a) => (
+            <label key={a} className="os-radio">
+              <input
+                type="radio"
+                name="appearance"
+                checked={prefs.appearance === a}
+                onChange={() => setPrefs({ appearance: a })}
+              />
+              <span className={`os-radio-dot os-radio-dot--${a}`} aria-hidden />
+              {a === "blue" ? "Blue" : "Graphite"}
+            </label>
+          ))}
+        </div>
+        <p className="os-meta">For buttons, menus and windows. Saved in this browser.</p>
+      </section>
+    </div>
+  );
+}
+
+function FolderApp({ name }: { name: string }) {
+  return (
+    <div className="os-doc os-center">
+      <AppIcon kind="folder" />
+      <p>&ldquo;{name}&rdquo; is empty.</p>
+      <p className="os-meta">It will vanish when you reload. Like most of my side-project folders.</p>
+    </div>
+  );
+}
+
+const KIND_INFO: Partial<Record<AppKind, string>> = {
+  about: "Plain text document",
+  projects: "Folder",
+  resume: "PDF document",
+  photos: "Application",
+  contact: "Application",
+  folder: "Folder",
+};
+
+function InfoApp({ payload }: { payload?: AppPayload }) {
+  const target = payload?.target;
+  if (!target) {
+    return (
+      <article className="os-doc os-info">
+        <div className="os-info-icon">
+          <AppIcon kind="info" />
+        </div>
+        <h1>This Site</h1>
+        <dl className="os-info-list">
+          <div>
+            <dt>Kind:</dt>
+            <dd>Portfolio, pretending to be a computer</dd>
+          </div>
+          <div>
+            <dt>Built with:</dt>
+            <dd>Next.js, React, TypeScript, hand-written CSS</dd>
+          </div>
+          <div>
+            <dt>Icons:</dt>
+            <dd>react-icons on CSS-drawn glossy tiles</dd>
+          </div>
+          <div>
+            <dt>Artwork:</dt>
+            <dd>Original. Inspired by early-2000s Mac OS X; no Apple artwork or fonts are used.</dd>
+          </div>
+        </dl>
+      </article>
+    );
+  }
+  return (
+    <article className="os-doc os-info">
+      <div className="os-info-icon">
+        <AppIcon kind={target} payload={payload?.label ? { label: payload.label } : undefined} />
+      </div>
+      <h1>{payload?.label}</h1>
+      <dl className="os-info-list">
+        <div>
+          <dt>Kind:</dt>
+          <dd>{KIND_INFO[target] ?? "Application"}</dd>
+        </div>
+        <div>
+          <dt>Where:</dt>
+          <dd>Desktop</dd>
+        </div>
+        <div>
+          <dt>Opens:</dt>
+          <dd>{describe(target, payload?.label ? { label: payload.label } : undefined).title}</dd>
+        </div>
+      </dl>
+    </article>
+  );
+}
+
 function TrashApp() {
   return (
     <div className="os-doc os-center">
@@ -602,7 +741,13 @@ function HelpApp() {
         <li>The sidebar on the left lists every project and role. Click one to open it.</li>
         <li>Drag a window by its title bar. Drag the bottom-right corner to resize it.</li>
         <li>Red closes, yellow minimizes to the dock, green zooms to fill the screen.</li>
-        <li>Double-click a title bar to minimize. Double-click desktop icons to open them.</li>
+        <li>Double-click a title bar to minimize. Double-click icons to open them.</li>
+        <li>
+          Select several icons with Cmd/Ctrl-click, Shift-click or by dragging a box around them,
+          then double-click (or press Enter) to open them all.
+        </li>
+        <li>Right-click the desktop for more options, including a new wallpaper.</li>
+        <li>Open Terminal from the dock and type &lsquo;help&rsquo;.</li>
         <li>In Photos, use the left and right arrow keys to flip through pictures.</li>
         <li>Snake and the Search Visualizer run right here: open them from the dock.</li>
         <li>Press Escape on a focused window to close it.</li>
@@ -646,5 +791,15 @@ export const AppBody = memo(function AppBody({
       return <HelpApp />;
     case "photos":
       return <PhotosApp />;
+    case "terminal":
+      return <Terminal />;
+    case "prefs":
+      return <PrefsApp />;
+    case "music":
+      return <MusicApp />;
+    case "folder":
+      return <FolderApp name={payload?.label ?? "untitled folder"} />;
+    case "info":
+      return <InfoApp payload={payload} />;
   }
 });
