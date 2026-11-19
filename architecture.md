@@ -19,6 +19,7 @@ src/
     photos.ts         — photos[] shown in the Photos window ({ src, alt, caption?, w, h })
     songs.ts          — songs[] for the Music window ({ title, artist, src }); files in public/music/
     widgets.ts        — text for the sticky-note widget
+    knowledge.ts      — ShubhGPT knowledge entries (first-person, generated from portfolioData + About facts)
     globals.css       — Tailwind import, CSS custom properties (still used by the demos)
     fonts.ts          — Kode Mono font export
   components/
@@ -44,11 +45,12 @@ src/
       Calendar.tsx      — month calendar from the menu-bar clock; milestones derived from data
       Toast.tsx         — ToastProvider / useToast() notification bubbles
       sounds.ts         — Web Audio synthesised UI sounds; play(name) is a no-op unless prefs.sound
+      shubhgpt/         — ShubhGPT.tsx (chat window) + answer.ts (scripted keyword matching over knowledge.ts)
       eggs/             — Easter eggs: bus.ts (event bus + dev mode), trash.ts, useKonami.ts,
                           Confetti.tsx, ScreenSaver.tsx, Panic.tsx, MatrixRain.tsx, useShake.ts
       os.css            — all desktop styling (Aqua chrome, cursors, animations, mobile)
     SnakeGame.jsx     + SnakeGame.css
-    SearchVisualizer.jsx + SearchVisualizer.css
+    SearchVisualizer.jsx + SearchVisualizer.css + searchAlgorithms.js
 public/
   os/                 — cursor-arrow.svg, cursor-hand.svg, cursor-wait.svg (retro cursors)
   music/              — mp3s for the Music window (empty until songs are added)
@@ -121,6 +123,7 @@ State: `{ wins: WinState[], zTop }`. `WinState` holds `id, kind, title, payload,
 | `music` | Music: transport, LCD display with scrubber, volume, playlist. Playback lives in `MusicProvider`, so it continues when the window is closed |
 | `folder` | An "untitled folder" made from the desktop right-click menu (in memory only) |
 | `info` | Get Info: about the site (no payload) or about a desktop icon (`{ label, target }`) |
+| `shubhgpt` | ShubhGPT chat: speech bubbles, suggested questions, typing dots, word-by-word answers, Email Shubh (opens Mail prefilled via `payload.label`), New chat |
 
 To add a new kind: extend `AppKind`, then `describe`, `SIZES`, `appName`, `ICONS` in `appMeta.tsx`, and the `AppBody` switch.
 
@@ -165,13 +168,28 @@ On the wallpaper: New Folder, Change Desktop Background…, Clean Up (`wm.cleanU
 - `WindowManager` also has `closeAll()` (Log Out / Restart) and `cleanUp()`; `launch()` briefly adds `html.os-busy` for the spinning-wheel cursor.
 
 ### Dock (`Dock.tsx`)
-Projects, About, Experience, one item per project with a `demoComponent`, Résumé, Photos, Music, Terminal, Mail | GitHub, LinkedIn, YouTube | minimized windows | Trash. Magnification uses item centres measured on pointer-enter (mouse only). Items bounce on first launch; a triangle marks open windows.
+Projects, About, ShubhGPT, Experience, one item per project with a `demoComponent`, Résumé, Photos, Music, Terminal, Mail | GitHub, LinkedIn, YouTube | minimized windows | Trash. Magnification uses item centres measured on pointer-enter (mouse only). Items bounce on first launch; a triangle marks open windows.
 
 ### FinderList (`FinderSidebar.tsx`)
 Search field (filters projects and work projects by name, tech stack, description), Favorites, Projects (★ = featured), Experience (role groups with disclosure triangles; newest role expanded). The item for the focused window is highlighted.
 
 ### Mobile (< 768px)
 `.is-mobile`: no sidebar or desktop icons; every window is full screen between the menu bar and dock; no drag/resize/zoom; dock scrolls horizontally; File/View/Go/Help menus hidden. On load, the Finder window opens under About.
+
+### ShubhGPT (`shubhgpt/`, `src/app/knowledge.ts`)
+- **Now:** `answer(question)` scores every `KNOWLEDGE` entry by whole-word keyword hits and replies with the best one (two if tied); greetings/thanks get small talk; no match gets `FALLBACK`. Answers are first person and never invented: every entry is generated from `portfolioData.tsx` or facts already shown on the site.
+- **Later (agreed with the user):** a server route (`src/app/api/shubhgpt/route.ts`) sends the whole knowledge base (it is small) with each question to Claude, with prompt caching on the fixed part, streaming, a career-only system prompt that says "email Shubh" when unsure, per-visitor rate limits and a daily spend cap. No vector search unless lots more material is added. Only `answer()` changes; the UI stays.
+- Mail's `ContactApp` accepts `prefill` (from `payload.label`); ShubhGPT reopens Mail if it is already open so the prefill applies.
+
+### Demos
+**SnakeGame** (`src/components/SnakeGame.jsx` + `.css`): 18×18 board, DOM-rendered from refs. Glossy look: checkerboard, gel segments with a head-to-tail colour shift, head with eyes facing `data-dir`, CSS apple, LCD SCORE/BEST (best in `localStorage["sv-snake-best"]`), start screen and Aqua game-over dialog. One animation loop for the component's lifetime; only arrow keys steer, only while its window is active; no reversing into itself.
+
+**SearchVisualizer** (`SearchVisualizer.jsx` + `.css`, logic in `searchAlgorithms.js`):
+- **Board:** 25×25 (`SIZE`). Model in refs (`starts[]`, `goal`, `walls`/`mud` Sets); squares render once and are updated by toggling classes (`is-wall`, `is-mud`, `is-start`, `is-goal`, `is-frontier`, `is-visited`, `is-path`), so animation never re-renders 625 React nodes. Width `min(560px, 100%, 100dvh - 340px)` to fit the window.
+- **Tools:** Start (up to 4, `START_COLORS`), Goal, Wall, Mud (cost 5), Eraser; click/drag paints, dragging a marker moves it, right-click erases. Any edit cancels a running search and clears its marks.
+- **Algorithms:** `search(algo, board)` is a generator yielding `frontier` / `visit` events and returning `{ path, cost, owner }` or `null`. Multi-source: all starts enter the frontier at cost 0, each square records its `owner` start, and the first start to reach the goal wins. BFS/DFS/Greedy ignore mud for ordering; UCS/A* use costs; Greedy/A* use Manhattan distance.
+- **Run / Step / Pause / Reset** share the generator; speed 1–10 maps to `SPEEDS` (delay, squares per tick). Stats LCD: explored, path length, path cost, pure algorithm time (timed once without animation), winner. No path: "No path" + board shake.
+- **Board menu:** random maze (recursive backtracking plus a few knocked-out walls), scattered walls (~28%), sprinkle mud, clear, reset.
 
 ## Data Model
 

@@ -4,6 +4,7 @@ import type { IconType } from "react-icons";
 import {
   FaBriefcase,
   FaCog,
+  FaCommentDots,
   FaEnvelope,
   FaFilePdf,
   FaFolder,
@@ -71,6 +72,8 @@ export function describe(kind: AppKind, payload?: AppPayload): { id: string; tit
       return { id: "music", title: "Music" };
     case "folder":
       return { id: `folder:${payload?.label}`, title: payload?.label ?? "untitled folder" };
+    case "shubhgpt":
+      return { id: "shubhgpt", title: "ShubhGPT" };
     case "info":
       return {
         id: `info:${payload?.label ?? "site"}`,
@@ -98,11 +101,12 @@ const SIZES: Record<AppKind, [number, number]> = {
   music: [540, 470],
   folder: [420, 300],
   info: [320, 400],
+  shubhgpt: [460, 640],
 };
 
 export function defaultSize(kind: AppKind, payload?: AppPayload): [number, number] {
   // The search visualizer needs more room than the snake board.
-  if (kind === "demo" && payload?.project?.name?.toLowerCase().includes("search")) return [620, 760];
+  if (kind === "demo" && payload?.project?.name?.toLowerCase().includes("search")) return [660, 800];
   return SIZES[kind];
 }
 
@@ -125,6 +129,8 @@ export function appName(kind: AppKind | undefined, payload?: AppPayload): string
       return "System Preferences";
     case "music":
       return "Music";
+    case "shubhgpt":
+      return "ShubhGPT";
     case "demo":
       return payload?.project?.name ?? "Demo";
     case "project":
@@ -165,6 +171,7 @@ const ICONS: Record<string, IconSpec> = {
   music: { icon: FaMusic, c1: "#ffb3e0", c2: "#8a3fd1" },
   folder: { icon: FaFolder, c1: "#a8d4ff", c2: "#2a7de1" },
   info: { icon: FaInfoCircle, c1: "#c9e3ff", c2: "#3a78c9" },
+  shubhgpt: { icon: FaCommentDots, c1: "#9ff0e0", c2: "#1f7fd6" },
 };
 
 /** Glossy rounded tile icon. Project-backed windows use the project's screenshot. */

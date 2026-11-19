@@ -127,7 +127,7 @@ export default function Window({
         win.kind === "experience" || win.kind === "work" || win.kind === "terminal"
           ? "os-window--dark"
           : "",
-        win.kind === "music" ? "os-window--metal" : "",
+        win.kind === "music" || win.kind === "shubhgpt" ? "os-window--metal" : "",
         accent ? "os-window--accent" : "",
         win.tilt !== undefined ? "is-fallen" : "",
         moving ? "is-moving" : "",

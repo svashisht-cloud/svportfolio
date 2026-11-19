@@ -18,7 +18,8 @@ export type AppKind =
   | "prefs"
   | "music"
   | "folder"
-  | "info";
+  | "info"
+  | "shubhgpt";
 
 export interface AppPayload {
   project?: Project;

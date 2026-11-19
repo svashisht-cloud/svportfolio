@@ -19,6 +19,7 @@ import { AppIcon, EMAIL, LINKS, describe, prefersReducedMotion } from "./appMeta
 import { MusicApp } from "./Music";
 import { WALLPAPERS, setPrefs, usePrefs, type ThemeMode } from "./prefs";
 import Terminal from "./Terminal";
+import ShubhGPT from "./shubhgpt/ShubhGPT";
 import { useSelection } from "./useSelection";
 import { tiltHandlers } from "./useTilt";
 import { TRASH_FILES, setTrashFull, useTrashFull } from "./eggs/trash";
@@ -83,6 +84,7 @@ const SHORTCUTS: { kind: AppKind; label: string }[] = [
   { kind: "resume", label: "Résumé" },
   { kind: "photos", label: "Photos" },
   { kind: "music", label: "Music" },
+  { kind: "shubhgpt", label: "ShubhGPT" },
   { kind: "contact", label: "Mail" },
 ];
 
@@ -508,9 +510,9 @@ function ResumeApp() {
   );
 }
 
-function ContactApp() {
+function ContactApp({ prefill }: { prefill?: string }) {
   const [subject, setSubject] = useState("Hello from your portfolio");
-  const [body, setBody] = useState("");
+  const [body, setBody] = useState(prefill ?? "");
   const send = (e: React.FormEvent) => {
     e.preventDefault();
     const url = `mailto:${EMAIL}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
@@ -824,6 +826,7 @@ function HelpApp() {
         </li>
         <li>Right-click the desktop for more options, including a new wallpaper.</li>
         <li>Open Terminal from the dock and type &lsquo;help&rsquo;.</li>
+        <li>Ask ShubhGPT (the speech bubble in the dock) anything about my work.</li>
         <li>Click the moon or sun in the menu bar to switch between dark and light mode.</li>
         <li>
           Secrets: there are 8 hidden things on this desktop. The keyboard, the logo, the clock and
@@ -865,7 +868,9 @@ export const AppBody = memo(function AppBody({
     case "resume":
       return <ResumeApp />;
     case "contact":
-      return <ContactApp />;
+      return <ContactApp prefill={payload?.label} />;
+    case "shubhgpt":
+      return <ShubhGPT />;
     case "trash":
       return <TrashApp />;
     case "help":

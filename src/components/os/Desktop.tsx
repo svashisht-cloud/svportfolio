@@ -47,6 +47,7 @@ const DESKTOP_ICONS: DeskItem[] = [
   { key: "projects", kind: "projects", label: "Projects" },
   { key: "resume", kind: "resume", label: "Résumé.pdf" },
   { key: "photos", kind: "photos", label: "Photos" },
+  { key: "shubhgpt", kind: "shubhgpt", label: "ShubhGPT" },
   { key: "contact", kind: "contact", label: "Mail Me" },
 ];
 

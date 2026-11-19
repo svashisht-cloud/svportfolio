@@ -8,6 +8,7 @@ import type { AppKind, AppPayload } from "./types";
 
 const FAVORITES: { kind: AppKind; label: string }[] = [
   { kind: "about", label: "About Me" },
+  { kind: "shubhgpt", label: "Ask ShubhGPT" },
   { kind: "projects", label: "Projects" },
   { kind: "experience", label: "Experience" },
   { kind: "education", label: "Education" },

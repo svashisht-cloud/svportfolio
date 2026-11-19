@@ -45,6 +45,7 @@ const APPS: Target[] = [
   { name: "Music", kind: "music", aliases: ["songs"] },
   { name: "Mail", kind: "contact", aliases: ["contact", "email"] },
   { name: "System Preferences", kind: "prefs", aliases: ["prefs", "settings", "wallpaper"] },
+  { name: "ShubhGPT", kind: "shubhgpt", aliases: ["gpt", "chat", "ask", "ai"] },
   { name: "Help", kind: "help" },
   { name: "Trash", kind: "trash" },
 ];

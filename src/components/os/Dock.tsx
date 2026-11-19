@@ -20,6 +20,7 @@ const demos = projects.filter((p) => p.demoComponent);
 const APPS: DockItem[] = [
   { key: "projects", label: "Projects", kind: "projects" },
   { key: "about", label: "About Me", kind: "about" },
+  { key: "shubhgpt", label: "ShubhGPT", kind: "shubhgpt" },
   { key: "experience", label: "Experience", kind: "experience" },
   ...demos.map((p) => ({
     key: `demo:${p.name}`,

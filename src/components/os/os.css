@@ -1122,17 +1122,6 @@
   background: var(--background);
   font-family: var(--font-geist-sans), sans-serif;
 }
-.os-demo .grid-container {
-  width: min(480px, 100%) !important;
-  height: auto !important;
-  aspect-ratio: 1;
-  grid-auto-rows: 1fr;
-}
-.os-demo .search-visualizer {
-  width: 100%;
-  max-width: 520px;
-  padding: 0;
-}
 .os-demo select {
   color: var(--ink);
   background: #fff;
@@ -3312,5 +3301,265 @@ html.os-busy .os-root * {
   }
   .os-window.is-fallen {
     transform: none;
+  }
+}
+
+/* =====================================================================
+   ShubhGPT: early-2000s Mac messenger
+   ===================================================================== */
+.os-sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+}
+.os-chat {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  padding: 0 10px 10px;
+  gap: 8px;
+}
+.os-chat-head {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 2px 4px 0;
+}
+.os-chat-avatar {
+  flex-shrink: 0;
+  width: 36px;
+  height: 36px;
+  border-radius: 8px;
+  object-fit: cover;
+  border: 2px solid #fff;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.35);
+}
+.os-chat-avatar--small {
+  width: 30px;
+  height: 30px;
+  border-radius: 7px;
+}
+.os-chat-avatar--you {
+  display: grid;
+  place-items: center;
+  color: #fff;
+  background: linear-gradient(160deg, #c8ccd4, #7d8592);
+}
+.os-chat-avatar--you svg {
+  width: 13px;
+  height: 13px;
+}
+.os-chat-name {
+  margin: 0;
+  font-weight: bold;
+}
+.os-chat-status {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  margin: 0;
+  font-size: 11px;
+  color: #555;
+}
+.os-chat-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: radial-gradient(circle at 40% 35%, #b6f5a8, #2fb344);
+  box-shadow: 0 0 5px #2fb344;
+}
+
+.os-chat-list {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 12px 10px;
+  border-radius: 6px;
+  border: 1px solid #8f8f8f;
+  background:
+    repeating-linear-gradient(0deg, rgba(0, 0, 0, 0.018) 0 1px, transparent 1px 3px),
+    #fff;
+  box-shadow: inset 0 1px 3px rgba(0, 0, 0, 0.18);
+  user-select: text;
+  -webkit-user-select: text;
+}
+.os-chat-row {
+  display: flex;
+  align-items: flex-end;
+  gap: 8px;
+  max-width: 88%;
+}
+.os-chat-row--user {
+  align-self: flex-end;
+  flex-direction: row-reverse;
+}
+@keyframes os-bubble-in {
+  from {
+    opacity: 0;
+    transform: translateY(6px) scale(0.96);
+  }
+}
+.os-bubble {
+  position: relative;
+  margin: 0;
+  padding: 8px 12px;
+  border-radius: 16px;
+  line-height: 1.45;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  animation: os-bubble-in 0.25s cubic-bezier(0.34, 1.4, 0.64, 1);
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.25), inset 0 1px 0 rgba(255, 255, 255, 0.7);
+}
+/* Glossy gel bubbles: grey-white for ShubhGPT, blue for the visitor. */
+.os-chat-row--bot .os-bubble {
+  color: #1b1b1b;
+  border-bottom-left-radius: 4px;
+  background:
+    linear-gradient(rgba(255, 255, 255, 0.85), rgba(255, 255, 255, 0) 55%),
+    linear-gradient(#f4f5f7, #dfe2e8);
+  border: 1px solid #b9bec8;
+}
+.os-chat-row--user .os-bubble {
+  color: #0b2142;
+  border-bottom-right-radius: 4px;
+  background:
+    linear-gradient(rgba(255, 255, 255, 0.7), rgba(255, 255, 255, 0) 55%),
+    linear-gradient(#bfe0ff, #7ab8f5);
+  border: 1px solid #5b95d6;
+}
+@keyframes os-typing {
+  0%,
+  60%,
+  100% {
+    transform: translateY(0);
+    opacity: 0.4;
+  }
+  30% {
+    transform: translateY(-4px);
+    opacity: 1;
+  }
+}
+.os-bubble--typing {
+  display: flex;
+  gap: 4px;
+  padding: 11px 14px;
+}
+.os-bubble--typing span {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: #7d8592;
+  animation: os-typing 1s ease-in-out infinite;
+}
+.os-bubble--typing span:nth-child(2) {
+  animation-delay: 0.15s;
+}
+.os-bubble--typing span:nth-child(3) {
+  animation-delay: 0.3s;
+}
+
+.os-chat-chips {
+  display: flex;
+  gap: 6px;
+  overflow-x: auto;
+  padding: 2px 1px 4px;
+  scrollbar-width: thin;
+}
+.os-chip {
+  flex-shrink: 0;
+  padding: 3px 11px;
+  border-radius: 12px;
+  font: inherit;
+  font-size: 11px;
+  white-space: nowrap;
+  color: #1d3d7a;
+  border: 1px solid #a9bfe6;
+  background: linear-gradient(#f7faff, #dbe7fb);
+  box-shadow: 0 1px 1px rgba(0, 0, 0, 0.12);
+}
+.os-chip:hover:not(:disabled) {
+  background: linear-gradient(#ffffff, #cfe0fa);
+}
+.os-chip:disabled {
+  opacity: 0.55;
+}
+.os-chat-input {
+  display: flex;
+  align-items: flex-end;
+  gap: 8px;
+}
+.os-chat-input textarea {
+  flex: 1;
+  min-height: 30px;
+  max-height: 90px;
+  padding: 6px 10px;
+  border-radius: 15px;
+  resize: none;
+  font: inherit;
+  color: var(--ink);
+  border: 1px solid #8f8f8f;
+  background: #fff;
+  box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.25);
+  field-sizing: content;
+}
+.os-chat-input textarea:focus {
+  outline: none;
+  border-color: var(--hilite-2);
+  box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.25), 0 0 0 3px rgba(80, 150, 255, 0.35);
+}
+.os-chat-input .aqua-btn {
+  height: 30px;
+  border-radius: 15px;
+}
+.os-chat-foot {
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+/* Dark theme */
+.os-root[data-theme="dark"] .os-chat-status {
+  color: #a0a1a7;
+}
+.os-root[data-theme="dark"] .os-chat-list {
+  border-color: #111;
+  background:
+    repeating-linear-gradient(0deg, rgba(255, 255, 255, 0.02) 0 1px, transparent 1px 3px),
+    #1c1d21;
+}
+.os-root[data-theme="dark"] .os-chat-row--bot .os-bubble {
+  color: #ececef;
+  border-color: #4a4d55;
+  background:
+    linear-gradient(rgba(255, 255, 255, 0.12), rgba(255, 255, 255, 0) 55%),
+    linear-gradient(#3b3e45, #2c2e33);
+}
+.os-root[data-theme="dark"] .os-chat-row--user .os-bubble {
+  color: #fff;
+  border-color: #1d5fb0;
+  background:
+    linear-gradient(rgba(255, 255, 255, 0.25), rgba(255, 255, 255, 0) 55%),
+    linear-gradient(#4b93ea, #1f63c4);
+}
+.os-root[data-theme="dark"] .os-chip {
+  color: #cfe0ff;
+  border-color: #3d5482;
+  background: linear-gradient(#2c3a55, #22304a);
+}
+.os-root[data-theme="dark"] .os-chat-input textarea {
+  border-color: #111;
+  background: #1b1c20;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .os-bubble,
+  .os-bubble--typing span {
+    animation: none !important;
   }
 }
