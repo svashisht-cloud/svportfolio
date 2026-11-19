@@ -14,58 +14,88 @@
 src/
   app/
     layout.tsx        — root layout: applies fonts, imports globals.css, sets metadata
-    page.tsx          — main page: all data, state, layout orchestration
-    globals.css       — Tailwind import, CSS custom properties, dark mode
-    fonts.ts          — Kode Mono font export (Geist fonts defined inline in layout.tsx)
+    page.tsx          — renders <Desktop/>; nothing else
+    portfolioData.tsx — all content: projects[] and experiences[] (+ types)
+    globals.css       — Tailwind import, CSS custom properties (still used by the demos)
+    fonts.ts          — Kode Mono font export
   components/
-    LandingSection.jsx / (no .css)
+    os/               — the retro Mac OS X–style desktop (see below)
+      Desktop.tsx       — root client component: provider, wallpaper, desktop icons, shut-down screen
+      WindowManager.tsx — window state (reducer + context), workArea(), useWM()/useWMState()
+      Window.tsx        — window chrome: traffic lights, drag, resize, open/close/minimize animations
+      apps.tsx          — AppBody (memoized) + one component per window kind
+      appMeta.tsx       — constants, links, describe()/defaultSize()/appName(), AppIcon
+      FinderSidebar.tsx — pinned Finder sidebar + FinderList (Projects / Experience source list)
+      MenuBar.tsx       — top menu bar with working menus and clock
+      Dock.tsx          — magnifying dock, running dots, bounce, minimized-window tiles
+      types.ts          — AppKind, AppPayload, WinState
+      os.css            — all desktop styling (Aqua chrome, cursors, animations, mobile)
     SnakeGame.jsx     + SnakeGame.css
     SearchVisualizer.jsx + SearchVisualizer.css
 public/
-  images/             — all image assets (see Static Assets section)
+  os/                 — cursor-arrow.svg, cursor-hand.svg (retro cursors)
+  images/             — image assets
   resume.pdf
-  *.svg               — Next.js/Vercel default SVGs
 ```
 
-## Component Hierarchy & Data Flow
+## The Desktop (component hierarchy)
 
 ```
-RootLayout (layout.tsx)
-└─ Home (page.tsx)            ← orchestrator; owns all page state
-   ├─ MetaRow                 ← inline sub-component; renders project.role pill
-   ├─ WorkDetailPanel         ← inline sub-component; "About + Key Highlights" layout for work projects
-   ├─ LandingSection          ← rendered when displayedProject === null
-   ├─ SnakeGame               ← passed as demoComponent for the Snake Game project entry
-   └─ SearchVisualizer        ← passed as demoComponent for the Search Visualizer project entry
+Home (page.tsx)
+└─ Desktop
+   └─ WindowManagerProvider        ← owns all window state
+      └─ Workspace                 ← .os-root; adds .is-mobile below 768px
+         ├─ MenuBar                ← logo/app/File/View/Go/Window/Help menus + clock
+         ├─ FinderSidebar          ← desktop only; FinderList inside a brushed-metal panel
+         ├─ DesktopIcons           ← desktop only; double-click (or Enter) to open
+         ├─ Window × n             ← one per open window
+         │  └─ AppBody(kind, payload)
+         ├─ Dock
+         └─ shut-down overlay      ← from the logo menu
 ```
 
-### Page State (`page.tsx`)
+### Window manager (`WindowManager.tsx`)
 
-| Variable | Type | Purpose |
-|---|---|---|
-| `selectedProject` | `Project \| null` | Which project the user clicked (responds immediately) |
-| `displayedProject` | `Project \| null` | What's actually rendered in the main panel (lags 200ms for fade animation) |
-| `contentVisible` | `boolean` | Drives opacity/translate transition on the main panel |
-| `showDemo` | `boolean` | Whether the inline demo component is shown instead of project detail |
-| `isMenuOpen` | `boolean` | Mobile hamburger menu toggle |
-| `projectsOpen` | `boolean` | Whether the Projects section is expanded in the sidebar |
-| `experienceOpen` | `boolean` | Whether the Experience section is expanded in the sidebar |
-| `openRoles` | `Record<string, boolean>` | Per-role collapse state, keyed by `role.title`; all start `false` |
+State: `{ wins: WinState[], zTop }`. `WinState` holds `id, kind, title, payload, x, y, w, h, z, minimized, maximized, phase, mx, my, prev`.
 
-### Page State Machine
+- **Window identity:** `describe(kind, payload)` gives a stable `id` (`"about"`, `"project:<name>"`, `"work:<name>"`, `"demo:<name>"`, …). Launching an id that is already open focuses it (or restores it if minimized) instead of opening a duplicate.
+- **Actions (`useWM()`):** `launch, activate, focus, close, minimize, restore, toggleMaximize, move, resize`. The actions object is stable; state is in a separate context (`useWMState()` → `{ wins, focused }`), so components that only launch windows don't re-render on every drag.
+- **Phases drive CSS animations:** `opening → open`, `closing → removed`, `minimizing → minimized`, `restoring → open`. Timers are set to 0 under `prefers-reduced-motion`.
+- **Minimize target:** the dock separator marked `data-dock-target="minimized"`; `mx/my` is the offset used by the `os-minimize` keyframes.
+- **Layout:** `workArea()` = right of the sidebar (desktop), between the menu bar (22px) and dock (84px; 64px on mobile). New windows cascade by 26px.
+- **Focus:** the topmost non-minimized window. The menu bar shows its app name.
 
-| State | View |
+### Window kinds (`apps.tsx`)
+
+| kind | Content |
 |---|---|
-| `displayedProject === null` | LandingSection (hero), centered in main panel |
-| `displayedProject` set, has `image`, `showDemo = false` | 5-zone personal project detail (hero strip + About + Key Highlights + actions + prev/next) |
-| `displayedProject` set, no `image`, `showDemo = false` | WorkDetailPanel (About + Key Highlights; no hero strip, no prev/next) |
-| `displayedProject` set, `showDemo = true` | `displayedProject.demoComponent` rendered inline |
+| `about` | Bio, photo, quick facts, buttons that launch other windows, social links |
+| `finder` | `FinderList` (used as a full-screen window on mobile) |
+| `projects` | Finder icon view of all projects |
+| `project` | Screenshot, role, tags, description, highlights, Launch demo / View live / Source, "Next project" |
+| `demo` | `project.demoComponent` (Snake, Search Visualizer) on a dark background |
+| `work` | Work project: role · company · dates, tags, description, highlights |
+| `experience` | Timeline of roles (newest first) with clickable work projects |
+| `education` | UMass Amherst |
+| `resume` | Toolbar (Download / Open in new tab) + PDF iframe |
+| `contact` | Mail compose form that opens a `mailto:` link |
+| `trash`, `help` | Joke / usage tips |
 
-**Transition mechanism:** `selectedProject` changes immediately on click (sidebar active state snaps). A `useEffect` watching `selectedProject` fades out the main panel (`contentVisible = false`), waits 200ms, syncs `displayedProject = selectedProject`, and fades back in. Prev/next labels are derived from `displayedProject` so they stay in sync with visible content during transitions.
+To add a new kind: extend `AppKind`, then `describe`, `SIZES`, `appName`, `ICONS` in `appMeta.tsx`, and the `AppBody` switch.
 
-State handlers:
-- `handleProjectClick(project)` — sets `selectedProject`, resets `showDemo`, closes mobile menu; if the project is a work project it also sets `experienceOpen = true` and opens the correct role card
-- `handleGoToCode()` / `handleGoToProject()` — open URLs from `displayedProject` in a new tab
+### Window chrome (`Window.tsx`)
+- Drag by title bar (pointer capture), clamped to the viewport; resize from the bottom-right grip (min 300×200). While dragging, `html.os-dragging` disables iframe pointer events.
+- Traffic lights: close, minimize, zoom (zoom hidden on mobile). Double-click title bar minimizes. Escape closes a focused window.
+- `role="dialog"`, focused on mount.
+
+### Dock (`Dock.tsx`)
+Projects, About, Experience, one item per project with a `demoComponent`, Résumé, Mail | GitHub, LinkedIn | minimized windows | Trash. Magnification uses item centres measured on pointer-enter (mouse only). Items bounce on first launch; a triangle marks open windows.
+
+### FinderList (`FinderSidebar.tsx`)
+Search field (filters projects and work projects by name, tech stack, description), Favorites, Projects (★ = featured), Experience (role groups with disclosure triangles; newest role expanded). The item for the focused window is highlighted.
+
+### Mobile (< 768px)
+`.is-mobile`: no sidebar or desktop icons; every window is full screen between the menu bar and dock; no drag/resize/zoom; dock scrolls horizontally; File/View/Go/Help menus hidden. On load, the Finder window opens under About.
 
 ## Data Model
 
@@ -113,129 +143,35 @@ interface Experience {
 }
 ```
 
-Currently one company (Outrider) with 3 roles and 8 work projects total. Work projects are cast as `Project` via `wp as Project` when passed to `handleProjectClick` — valid because `Project.image` is optional.
+Currently one company (Outrider) with 3 roles and 8 work projects total. Work projects open as `work` windows with payload `{ work, company, role }`. The company logo is not shown in the desktop UI.
 
 **To add a work project:** push a `WorkProject` object into the appropriate `role.projects` array.
 
-## Component Details
-
-### LandingSection (`src/components/LandingSection.jsx`)
-
-- **Role:** Hero/home view shown before any project is selected.
-- **State:** One boolean per overlay panel — `showAboutMe`, `showExperience`, `showEducation`, `showSocials`, `showContact`.
-- **Overlay mechanism:** Each panel is `position: absolute` and toggled via Tailwind `translate-x-full` / `translate-x-0` (horizontal slide carousel).
-- **Content areas:**
-  - About Me: personal bio, quick facts, profile photo (`/images/personal.png`)
-  - Experience: Outrider logo (`/images/outrider.jpeg`), brief copy
-  - Education: UMass Amherst CS, logo (`/images/umass.png`)
-  - Socials: LinkedIn, GitHub, YouTube — each calls `window.open()`
-  - Contact: mailto link (`nucaluregaming@gmail.com`)
-  - Resume: anchor download link to `/resume.pdf`
-- **Props:** `setIsMenuOpen` — lets LandingSection open the mobile project nav.
-
-### WorkDetailPanel (inline, `src/app/page.tsx`)
-
-- **Role:** Right-panel layout for work projects (no hero image). Used when `displayedProject` has no `image`.
-- **Props:** `project: Project`, `mobile?: boolean`
-- **Layout:** Title + tech stack tags (pinned header) → scrollable "About" section → "Key Highlights" bullet list with ✦ markers.
-- **Padding:** `px-10` desktop / `px-4` mobile, controlled by `mobile` prop.
-
-### MetaRow (inline, `src/app/page.tsx`)
-
-- **Role:** Single line shown below the title in personal project detail panels.
-- **Content:** `project.role` only (e.g. "Solo developer", "Author").
-- **Returns null** if `project.role` is not set.
-
-### SnakeGame (`src/components/SnakeGame.jsx` + `SnakeGame.css`)
-
-- **Role:** Playable 18×18 classic snake game; used as an inline project demo.
-- **Performance pattern:** All mutable game state lives in **refs** to avoid re-renders. Only `gameOver` is React state.
-- **Game loop:** `main(ctime)` via `requestAnimationFrame` → throttled by `speedRef` → calls `gameEngine()`.
-- **Core logic (`gameEngine`):** collision check via `isCollide()` → food detection → snake array shift → DOM rendering.
-- **Rendering:** Direct DOM manipulation — no JSX re-renders during play.
-- **Controls:** Arrow keys (desktop); swipe via `handleTouchStart` / `handleTouchEnd` (mobile).
-
-### SearchVisualizer (`src/components/SearchVisualizer.jsx` + `SearchVisualizer.css`)
-
-- **Role:** Interactive 20×20 pathfinding visualizer for 5 algorithms.
-- **State:** `grid` (2D array), `selectedAlgorithm`, `startNode`, `endNode`, `isSearching`, `showHelp`
-- **Algorithms:** BFS (queue), DFS (stack), Greedy DFS (stack + Manhattan sort), Uniform Cost (min-heap), A* (min-heap, f = g + h).
-- **Shared pattern:** `visited` + `parent` arrays → `reconstructPath()` traces back and marks cells `"path"`.
-
-## Layout
-
-### Desktop (`lg:` and above)
-
-Full-height flex row:
-- **Sidebar** (`w-1/4`, `flex flex-col`, `overflow-y-auto`, dark gradient background)
-  - Name button (home/reset)
-  - **Projects** section — collapsible; project cards (`h-40`, hover lift, accent glow when active)
-  - **Experience** section — collapsible; company header → role cards → work project rows
-  - **Social icon row** — `mt-auto` pins it to the bottom; GitHub / LinkedIn / email
-- **Main panel** (`flex-1`) — shows LandingSection, personal project detail, or WorkDetailPanel
-
-### Mobile (below `lg:`)
-
-- **Fixed top bar** (`fixed top-0 z-50`, `h-16`) — SV logo + home button + hamburger; spacer div below it prevents content from hiding under it
-- **Hamburger overlay** (`fixed`, `flex flex-col`, slides in from left)
-  - Scrollable content (`flex-1 overflow-y-auto`) — Projects list + Experience tree
-  - Pinned social footer (`shrink-0`) — GitHub / LinkedIn / email icons
-- **Main content** — same detail views as desktop, with tighter padding
-
-### Sidebar — Experience section
-
-Role cards use an accent stripe pattern:
-- Card: `rounded-lg border border-[var(--border)]`
-- Header button: company logo + role title + date range + chevron; `bg-[var(--surface-raised)]`
-- Accent stripe: `w-0.5 h-8 rounded-full` — `bg-[var(--accent)]` when open, `bg-[var(--border)]` when closed
-- Work project rows: text-only, `text-xs`, dot indicator; accent highlight when active
-
-## Project Detail Layouts
-
-### Personal project (has `image`)
-
-5-zone layout, `flex-1 flex flex-col`:
-
-| Zone | Classes | Notes |
-|---|---|---|
-| Hero strip | `shrink-0`, radial gradient bg, `border-b` | 200–260px desktop / 140–180px mobile |
-| Title + tech tags | `shrink-0`, `px-10 pt-8 pb-3` / `px-4 pt-4 pb-2` | All tech tags shown |
-| MetaRow | `shrink-0`, `px-10 pb-3` / `px-4 pb-2` | Role string only |
-| Scrollable body | `flex-1 overflow-y-auto` | "About" section + "Key Highlights" bullets |
-| Action buttons | `shrink-0`, `border-t` | View Live / Source / Working Demo |
-| Nav footer | `shrink-0`, `border-t` | ← Previous / Next → (hidden for work projects) |
-
-### Work project (no `image`) — WorkDetailPanel
-
-| Zone | Classes | Notes |
-|---|---|---|
-| Title + tech tags | `shrink-0`, `border-b` | Same gradient title as personal projects |
-| Scrollable body | `flex-1 overflow-y-auto` | "About" + "Key Highlights" sections |
-| Action buttons | `shrink-0`, `border-t` | Only renders if codeUrl or projectUrl is set |
-
-No hero strip, no MetaRow, no Prev/Next footer.
-
 ## Styling
 
-- **Tailwind utility classes** throughout.
+- **Desktop UI:** plain CSS in `src/components/os/os.css` (Aqua-inspired, original drawing; no Apple artwork or fonts are shipped — the font stack prefers Lucida Grande if the visitor has it). Glossy icons are CSS gradient tiles with react-icons glyphs, or the project screenshot.
+- **Retro cursors:** `public/os/cursor-arrow.svg` (default) and `cursor-hand.svg` (links/buttons), set in `os.css`.
+- **Demos** keep their dark token-based look via `.os-demo`; `os.css` overrides their fixed `vmin` sizes to fit inside windows.
+- **Tailwind utility classes** are still used inside SnakeGame / SearchVisualizer.
 - **Global theme** (`src/app/globals.css`): CSS custom properties `--background`, `--surface`, `--surface-raised`, `--foreground`, `--muted`, `--text-dim`, `--border`, `--accent`, `--accent-hover`, `--accent-secondary`; automatic dark mode via `prefers-color-scheme: dark`.
-- **Component CSS files** only exist for SnakeGame and SearchVisualizer.
+
 - **Font variables:** `--font-geist-sans`, `--font-geist-mono` set by Next.js font loader; `kode_mono.className` applied directly to `<body>`.
 
 ## Static Assets (`/public`)
 
 | File | Used by |
 |---|---|
-| `images/personal.png` | LandingSection — profile photo |
-| `images/outrider.jpeg` | LandingSection + sidebar Experience section — Outrider logo |
-| `images/umass.png` | LandingSection — Education logo |
-| `resume.pdf` | LandingSection — resume download |
-| `images/forte2.png` | Forte Resume project card |
-| `images/MockLoop1.png` | AI Interviewer project card |
-| `images/windowIcon.png` | Windows XP Clone project card |
-| `images/search1.png` | Search Algorithm Viz project card |
-| `images/snake1.png` | Snake Game project card |
-| `images/npm1.png` | Moral-Fibre project card |
-| `images/python.svg.png` | PySvap project card |
-| `images/discord1.png` | Discord Bot project card |
-| `images/person.webp` | Personal Portfolio (Old) project card |
+| `images/personal.png` | About window — profile photo |
+| `images/outrider.jpeg` | Referenced by `experiences[].logo` only; not rendered |
+| `images/umass.png` | Education window |
+| `resume.pdf` | Résumé window (iframe + download), logo menu, desktop icon |
+| `os/cursor-arrow.svg`, `os/cursor-hand.svg` | Retro cursors (os.css) |
+| `images/forte2.png` | Forte Resume project icon + window screenshot |
+| `images/MockLoop1.png` | AI Interviewer project icon + window screenshot |
+| `images/windowIcon.png` | Windows XP Clone project icon + window screenshot |
+| `images/search1.png` | Search Algorithm Viz project icon + window screenshot |
+| `images/snake1.png` | Snake Game project icon + window screenshot |
+| `images/npm1.png` | Moral-Fibre project icon + window screenshot |
+| `images/python.svg.png` | PySvap project icon + window screenshot |
+| `images/discord1.png` | Discord Bot project icon + window screenshot |
+| `images/person.webp` | Personal Portfolio (Old) project icon + window screenshot |
