@@ -43,3 +43,36 @@ export function answer(question: string): Answer {
   const picks = second && second.s >= first.s && second.e.id !== first.e.id ? [first.e, second.e] : [first.e];
   return { text: picks.map((e) => e.text).join("\n\n"), sourceIds: picks.map((e) => e.id) };
 }
+
+export interface ChatTurn {
+  role: "user" | "assistant";
+  content: string;
+}
+
+/**
+ * Ask the real model via /api/shubhgpt. Falls back to the scripted answer when the
+ * route isn't configured (no OPENAI_API_KEY), is down, or the visitor is rate-limited.
+ */
+export async function askShubhGPT(history: ChatTurn[]): Promise<Answer & { live: boolean }> {
+  const question = history[history.length - 1]?.content ?? "";
+  try {
+    const res = await fetch("/api/shubhgpt", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ messages: history }),
+    });
+    if (res.status === 429) {
+      return {
+        text: "You've asked me a lot in a short time! Give it a little while, or use the Email Shubh button and I'll reply properly.",
+        sourceIds: [],
+        live: false,
+      };
+    }
+    if (!res.ok) throw new Error(String(res.status));
+    const data = (await res.json()) as { text?: string };
+    if (!data.text) throw new Error("empty");
+    return { text: data.text, sourceIds: [], live: true };
+  } catch {
+    return { ...answer(question), live: false };
+  }
+}

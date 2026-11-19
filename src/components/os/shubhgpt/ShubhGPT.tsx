@@ -6,7 +6,7 @@ import { GREETING } from "@/app/knowledge";
 import { prefersReducedMotion } from "../appMeta";
 import { play } from "../sounds";
 import { useWM, useWMState } from "../WindowManager";
-import { answer } from "./answer";
+import { askShubhGPT, type ChatTurn } from "./answer";
 
 interface Message {
   id: number;
@@ -41,6 +41,8 @@ export default function ShubhGPT() {
   const inputRef = useRef<HTMLTextAreaElement>(null);
   const timers = useRef<number[]>([]);
   const nextId = useRef(1);
+  // Bumped by "New chat" so a reply that arrives afterwards is dropped.
+  const chatGen = useRef(0);
 
   useEffect(() => {
     const list = listRef.current;
@@ -72,26 +74,40 @@ export default function ShubhGPT() {
     tick();
   };
 
-  const ask = (q: string) => {
+  const ask = async (q: string) => {
     const question = q.trim();
     if (!question || typing) return;
     play("click");
     setInput("");
     const userId = nextId.current++;
     const botId = nextId.current++;
+    const gen = chatGen.current;
     setMessages((m) => [...m, { id: userId, from: "user", text: question, shown: 0 }]);
     setTyping(true);
-    const reply = answer(question).text;
-    later(prefersReducedMotion() ? 0 : 650 + Math.min(900, reply.length * 2), () => {
-      setTyping(false);
-      const total = words(reply).length;
-      setMessages((m) => [...m, { id: botId, from: "bot", text: reply, shown: 0 }]);
-      play("pop");
-      stream(botId, total);
-    });
+
+    // The conversation so far (minus the greeting), plus the new question.
+    const history: ChatTurn[] = [
+      ...messages
+        .filter((m) => m.id !== 0)
+        .map((m) => ({ role: m.from === "user" ? ("user" as const) : ("assistant" as const), content: m.text })),
+      { role: "user", content: question },
+    ];
+    // Keep the typing dots up briefly even when the reply is instant (scripted fallback).
+    const minWait = prefersReducedMotion() ? 0 : 600;
+    const [{ text: reply }] = await Promise.all([
+      askShubhGPT(history),
+      new Promise((resolve) => window.setTimeout(resolve, minWait)),
+    ]);
+    if (gen !== chatGen.current) return; // "New chat" was pressed meanwhile
+
+    setTyping(false);
+    setMessages((m) => [...m, { id: botId, from: "bot", text: reply, shown: 0 }]);
+    play("pop");
+    stream(botId, words(reply).length);
   };
 
   const newChat = () => {
+    chatGen.current += 1;
     timers.current.forEach((id) => window.clearTimeout(id));
     timers.current = [];
     setTyping(false);
@@ -157,7 +173,7 @@ export default function ShubhGPT() {
 
       <div className="os-chat-chips" aria-label="Suggested questions">
         {SUGGESTIONS.map((s) => (
-          <button key={s} type="button" className="os-chip" onClick={() => ask(s)} disabled={typing}>
+          <button key={s} type="button" className="os-chip" onClick={() => void ask(s)} disabled={typing}>
             {s}
           </button>
         ))}
@@ -167,7 +183,7 @@ export default function ShubhGPT() {
         className="os-chat-input"
         onSubmit={(e) => {
           e.preventDefault();
-          ask(input);
+          void ask(input);
         }}
       >
         <textarea
@@ -182,7 +198,7 @@ export default function ShubhGPT() {
           onKeyDown={(e) => {
             if (e.key === "Enter" && !e.shiftKey) {
               e.preventDefault();
-              ask(input);
+              void ask(input);
             }
           }}
         />

@@ -177,8 +177,10 @@ Search field (filters projects and work projects by name, tech stack, descriptio
 `.is-mobile`: no sidebar or desktop icons; every window is full screen between the menu bar and dock; no drag/resize/zoom; dock scrolls horizontally; File/View/Go/Help menus hidden. On load, the Finder window opens under About.
 
 ### ShubhGPT (`shubhgpt/`, `src/app/knowledge.ts`)
-- **Now:** `answer(question)` scores every `KNOWLEDGE` entry by whole-word keyword hits and replies with the best one (two if tied); greetings/thanks get small talk; no match gets `FALLBACK`. Answers are first person and never invented: every entry is generated from `portfolioData.tsx` or facts already shown on the site.
-- **Later (agreed with the user):** a server route (`src/app/api/shubhgpt/route.ts`) sends the whole knowledge base (it is small) with each question to Claude, with prompt caching on the fixed part, streaming, a career-only system prompt that says "email Shubh" when unsure, per-visitor rate limits and a daily spend cap. No vector search unless lots more material is added. Only `answer()` changes; the UI stays.
+- **Scripted fallback:** `answer(question)` scores every `KNOWLEDGE` entry by whole-word keyword hits and replies with the best one (two if tied); greetings/thanks get small talk; no match gets `FALLBACK`. Answers are first person and never invented: every entry is generated from `portfolioData.tsx` or facts already shown on the site.
+- **Live model (OpenAI):** `src/app/api/shubhgpt/route.ts` (POST `{ messages: [{role, content}] }` → `{ text }`) sends the whole knowledge base as the system instructions to an OpenAI model via the Responses API (`openai` SDK): `reasoning.effort: "low"`, `max_output_tokens: 1200`, `store: false`. Career-only, first-person, "email Shubh" when unsure. Last 8 messages, 500 chars each; best-effort in-memory rate limit of 20 questions/hour per IP.
+- **Config:** `OPENAI_API_KEY` (required) and `OPENAI_MODEL` (default `gpt-5.4-mini`) in `.env.local` locally (git-ignored) or the host's environment settings. Without a key the route returns 503.
+- **Client:** `askShubhGPT(history)` in `answer.ts` calls the route and falls back to the scripted `answer()` on 503/502/network errors; on 429 it shows a "slow down" message. The typing dots stay up at least 600ms. "New chat" drops replies that arrive afterwards.
 - Mail's `ContactApp` accepts `prefill` (from `payload.label`); ShubhGPT reopens Mail if it is already open so the prefill applies.
 
 ### Demos
