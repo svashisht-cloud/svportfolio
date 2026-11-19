@@ -1,4 +1,7 @@
 import { experiences, projects } from "@/app/portfolioData";
+import { photos } from "@/app/photos";
+import { songs } from "@/app/songs";
+import { adventure } from "./eggs/adventure";
 import { EMAIL, LINKS } from "./appMeta";
 import { emit, isDevMode } from "./eggs/bus";
 import type { AppKind, AppPayload } from "./types";
@@ -12,17 +15,36 @@ export interface TermLine {
   href?: string;
 }
 
+/** The bits of the Music player the Terminal can drive (from useMusic()). */
+export interface MusicControl {
+  index: number;
+  playing: boolean;
+  time: number;
+  play(index?: number): void;
+  pause(): void;
+  next(): void;
+}
+
 export interface CommandContext {
   launch(kind: AppKind, payload?: AppPayload): void;
   history: string[];
   startedAt: number;
+  music: MusicControl;
+}
+
+/** Ask for more input; the next line typed goes to `handle` instead of the shell. */
+export interface FollowUp {
+  /** Shown instead of the shell prompt, e.g. "Password:" or ">". */
+  label: string;
+  masked?: boolean;
+  handle(input: string): CommandResult;
 }
 
 export interface CommandResult {
   lines: TermLine[];
   clear?: boolean;
-  /** Ask for a masked "password" next; the follow-up input goes to this handler. */
-  password?: (input: string) => CommandResult;
+  /** Ask for more input (sudo's password, the text adventure). */
+  prompt?: FollowUp;
   /** Play the falling-characters animation in the Terminal. */
   matrix?: boolean;
 }
@@ -96,6 +118,9 @@ const COMMANDS: [string, string][] = [
   ["skills", "tech used across projects"],
   ["cat resume", "résumé summary"],
   ["contact / socials", "ways to reach me"],
+  ["play [song]/pause/next/np", "control the Music player"],
+  ["neofetch", "system info, but make it about me"],
+  ["adventure", "a tiny text adventure"],
   ["history", "previous commands"],
   ["date", "what time is it"],
   ["clear", "clear the screen"],
@@ -120,12 +145,87 @@ export const COMMAND_NAMES = [
   "echo",
   "pwd",
   "matrix",
+  "play",
+  "pause",
+  "next",
+  "np",
+  "neofetch",
+  "adventure",
 ];
 
 function uptime(startedAt: number) {
   const s = Math.floor((Date.now() - startedAt) / 1000);
   const m = Math.floor(s / 60);
   return m ? `${m} min${m === 1 ? "" : "s"}, ${s % 60} secs` : `${s} secs`;
+}
+
+const fmtTime = (s: number) => `${Math.floor(s / 60)}:${String(Math.floor(s % 60)).padStart(2, "0")}`;
+
+function nowPlaying(m: MusicControl): TermLine[] {
+  const song = songs[m.index];
+  if (!song || (!m.playing && m.time === 0)) return [{ text: "Nothing playing. Try 'play'.", tone: "dim" }];
+  return [{ text: `${m.playing ? "▶" : "❚❚"} ${song.title} — ${song.artist}  [${fmtTime(m.time)}]`, tone: "ok" }];
+}
+
+function playCmd(arg: string, m: MusicControl): CommandResult {
+  if (!songs.length) return { lines: [{ text: "play: the library is empty", tone: "err" }] };
+  if (!arg) {
+    m.play();
+    const song = songs[m.index];
+    return { lines: [{ text: `▶ ${song.title} — ${song.artist}`, tone: "ok" }] };
+  }
+  const pool = songs.map((s, i) => ({ name: s.title, kind: "music" as const, aliases: [s.artist, `${s.title} ${s.artist}`], i }));
+  const t = findTarget(arg, pool) as (typeof pool)[number] | undefined;
+  if (!t) {
+    return {
+      lines: [
+        { text: `play: no song matching '${arg}'`, tone: "err" },
+        ...songs.map((s) => ({ text: `  ${s.title} — ${s.artist}`, tone: "dim" as const })),
+      ],
+    };
+  }
+  m.play(t.i);
+  return { lines: [{ text: `▶ ${songs[t.i].title} — ${songs[t.i].artist}`, tone: "ok" }] };
+}
+
+function neofetch(ctx: CommandContext): TermLine[] {
+  const art = [
+    "                 .:'",
+    "             __ :'__",
+    "          .'`  `-'  ``.",
+    "         :          .-'",
+    "         :         :",
+    "          :         `-;",
+    "           `.__.-.__.'",
+  ];
+  const roles = experiences.reduce((n, e) => n + e.roles.length, 0);
+  const top = skillCounts()
+    .slice(0, 4)
+    .map(([n]) => n)
+    .join(", ");
+  const song = songs[ctx.music.index];
+  const theme =
+    typeof document !== "undefined" && document.querySelector(".os-root[data-theme='dark']") ? "Dark" : "Light";
+  const info = [
+    "shubh@portfolio",
+    "---------------",
+    "OS: SV OS X (Aqua-ish)",
+    "Host: Shubh Vashisht, software engineer",
+    `Uptime: ${uptime(ctx.startedAt)}`,
+    `Projects: ${projects.length} · Roles: ${roles}`,
+    `Top stack: ${top}`,
+    `Library: ${songs.length} songs · ${photos.length} photos`,
+    `Music: ${ctx.music.playing && song ? `${song.title} — ${song.artist}` : "paused"}`,
+    `Theme: Aqua (${theme})`,
+  ];
+  const lines: TermLine[] = [];
+  for (let i = 0; i < Math.max(art.length, info.length); i++) {
+    lines.push({
+      text: `${(art[i] ?? "").padEnd(26)}${info[i] ?? ""}`,
+      tone: i === 0 ? "title" : i < art.length ? "accent" : undefined,
+    });
+  }
+  return lines;
 }
 
 export function banner(startedAt: number): TermLine[] {
@@ -320,14 +420,18 @@ export function run(input: string, ctx: CommandContext): CommandResult {
       if (arg.toLowerCase().replace(/\s+/g, "") === "hire-me" || arg.toLowerCase() === "hireme") {
         return {
           lines: [],
-          password: () => {
-            ctx.launch("contact");
-            return {
-              lines: [
-                { text: "Access granted. Excellent decision.", tone: "ok" },
-                { text: "Opening Mail…", tone: "dim" },
-              ],
-            };
+          prompt: {
+            label: "Password:",
+            masked: true,
+            handle: () => {
+              ctx.launch("contact");
+              return {
+                lines: [
+                  { text: "Access granted. Excellent decision.", tone: "ok" },
+                  { text: "Opening Mail…", tone: "dim" },
+                ],
+              };
+            },
           },
         };
       }
@@ -335,6 +439,21 @@ export function run(input: string, ctx: CommandContext): CommandResult {
         lines: [{ text: "shubh is not in the sudoers file. This incident will be reported.", tone: "err" }],
       };
     }
+    case "play":
+      return playCmd(arg, ctx.music);
+    case "pause":
+      ctx.music.pause();
+      return { lines: [{ text: "❚❚ Paused", tone: "dim" }] };
+    case "next":
+      if (!songs.length) return { lines: [{ text: "next: the library is empty", tone: "err" }] };
+      ctx.music.next();
+      return { lines: [{ text: "⏭ Skipping…", tone: "dim" }] };
+    case "np":
+      return { lines: nowPlaying(ctx.music) };
+    case "neofetch":
+      return { lines: neofetch(ctx) };
+    case "adventure":
+      return adventure(ctx.launch);
     case "exit":
       return { lines: [{ text: "Nice try. Close the window with the red button.", tone: "dim" }] };
     default:
@@ -355,6 +474,8 @@ export function complete(input: string): string {
   const pool =
     cmd === "run"
       ? projects.filter((p) => p.demoComponent).map((p) => p.name)
+      : cmd === "play"
+        ? songs.map((s) => s.title)
       : cmd === "ls"
         ? ["projects", "experience", "apps"]
         : cmd === "cat"

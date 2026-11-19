@@ -1,16 +1,28 @@
 "use client";
 import { useEffect, useRef, useState } from "react";
 import { FaMusic } from "react-icons/fa";
+import {
+  WiCloudy,
+  WiDayCloudy,
+  WiDaySunny,
+  WiFog,
+  WiNightAltCloudy,
+  WiNightClear,
+  WiRain,
+  WiSnow,
+  WiThunderstorm,
+} from "react-icons/wi";
 import { stickyNote } from "@/app/widgets";
 import { SIDEBAR_W } from "./appMeta";
 import { skillCounts } from "./commands";
 import { useMusic } from "./Music";
+import { useWM } from "./WindowManager";
 
-type WidgetId = "clock" | "note" | "music" | "stack";
+type WidgetId = "clock" | "note" | "music" | "weather" | "stack";
 type Positions = Partial<Record<WidgetId, { x: number; y: number }>>;
 
 const KEY = "sv-os-widgets";
-const ORDER: WidgetId[] = ["clock", "note", "music", "stack"];
+const ORDER: WidgetId[] = ["clock", "note", "music", "weather", "stack"];
 
 function loadPositions(): Positions {
   try {
@@ -31,7 +43,7 @@ function savePositions(p: Positions) {
 /** Default spots: a column to the left of the desktop icons. */
 function defaultPosition(id: WidgetId) {
   const i = ORDER.indexOf(id);
-  const heights = [0, 172, 330, 420];
+  const heights = [0, 172, 330, 420, 520];
   return { x: Math.max(SIDEBAR_W + 40, window.innerWidth - 120 - 210), y: 40 + heights[i] };
 }
 
@@ -97,6 +109,119 @@ function NowPlayingWidget() {
   );
 }
 
+/* ---------- Weather (Dallas, via Open-Meteo: free, no key) ---------- */
+
+interface Wx {
+  temp: number;
+  code: number;
+  day: boolean;
+  hi: number;
+  lo: number;
+  /** When it was fetched (ms). */
+  at: number;
+}
+
+const WX_KEY = "sv-os-weather";
+const WX_TTL = 30 * 60 * 1000;
+const WX_URL =
+  "https://api.open-meteo.com/v1/forecast?latitude=32.78&longitude=-96.80" +
+  "&current=temperature_2m,weather_code,is_day&daily=temperature_2m_max,temperature_2m_min" +
+  "&temperature_unit=fahrenheit&timezone=America%2FChicago&forecast_days=1";
+
+type WxKind = "sun" | "cloud" | "fog" | "rain" | "snow" | "storm";
+
+/** WMO weather codes → label, icon and animation kind. */
+function describeWx(code: number, day: boolean): { label: string; Icon: typeof WiDaySunny; kind: WxKind } {
+  if (code === 0) return { label: "Clear", Icon: day ? WiDaySunny : WiNightClear, kind: "sun" };
+  if (code <= 2) return { label: "Partly cloudy", Icon: day ? WiDayCloudy : WiNightAltCloudy, kind: "cloud" };
+  if (code === 3) return { label: "Overcast", Icon: WiCloudy, kind: "cloud" };
+  if (code === 45 || code === 48) return { label: "Fog", Icon: WiFog, kind: "fog" };
+  if (code >= 95) return { label: "Thunderstorms", Icon: WiThunderstorm, kind: "storm" };
+  if ((code >= 71 && code <= 77) || code === 85 || code === 86) return { label: "Snow", Icon: WiSnow, kind: "snow" };
+  if (code >= 51 && code <= 57) return { label: "Drizzle", Icon: WiRain, kind: "rain" };
+  return { label: "Rain", Icon: WiRain, kind: "rain" };
+}
+
+function readWxCache(): Wx | null {
+  try {
+    const wx = JSON.parse(window.sessionStorage.getItem(WX_KEY) ?? "null") as Wx | null;
+    return wx && Date.now() - wx.at < WX_TTL ? wx : null;
+  } catch {
+    return null;
+  }
+}
+
+function WeatherWidget() {
+  const [wx, setWx] = useState<Wx | null>(null);
+  const [failed, setFailed] = useState(false);
+
+  useEffect(() => {
+    let alive = true;
+    const load = async () => {
+      const cached = readWxCache();
+      if (cached) {
+        if (alive) setWx(cached);
+        return;
+      }
+      try {
+        const res = await fetch(WX_URL);
+        if (!res.ok) throw new Error(String(res.status));
+        const d = await res.json();
+        const next: Wx = {
+          temp: Math.round(d.current.temperature_2m),
+          code: d.current.weather_code,
+          day: d.current.is_day === 1,
+          hi: Math.round(d.daily.temperature_2m_max[0]),
+          lo: Math.round(d.daily.temperature_2m_min[0]),
+          at: Date.now(),
+        };
+        try {
+          window.sessionStorage.setItem(WX_KEY, JSON.stringify(next));
+        } catch {
+          // No storage: it just refetches next time.
+        }
+        if (alive) {
+          setWx(next);
+          setFailed(false);
+        }
+      } catch {
+        if (alive) setFailed(true);
+      }
+    };
+    const first = window.setTimeout(load, 0);
+    const timer = window.setInterval(load, WX_TTL);
+    return () => {
+      alive = false;
+      window.clearTimeout(first);
+      window.clearInterval(timer);
+    };
+  }, []);
+
+  const info = wx ? describeWx(wx.code, wx.day) : null;
+  return (
+    <div className="os-w-weather">
+      <div>
+        <p className="os-w-label">Dallas, TX</p>
+        {wx && info ? (
+          <>
+            <p className="os-w-temp">{wx.temp}°</p>
+            <p className="os-w-dim">
+              {info.label} · H {wx.hi}° L {wx.lo}°
+            </p>
+          </>
+        ) : (
+          <p className="os-w-dim">{failed ? "Weather unavailable" : "Loading…"}</p>
+        )}
+      </div>
+      {info && (
+        <span className={`os-w-wx-icon is-${info.kind}`} aria-hidden>
+          <info.Icon />
+        </span>
+      )}
+    </div>
+  );
+}
+
 function StackWidget() {
   const top = skillCounts().slice(0, 6);
   const max = top[0]?.[1] ?? 1;
@@ -117,6 +242,7 @@ function StackWidget() {
 
 /** Draggable glass widgets on the desktop (Dashboard-style). Desktop only. */
 export default function Widgets() {
+  const wm = useWM();
   const [pos, setPos] = useState<Positions | null>(null);
   const drag = useRef<{ id: WidgetId; dx: number; dy: number; last?: { x: number; y: number } } | null>(null);
 
@@ -152,7 +278,13 @@ export default function Widgets() {
     if (d.last) savePositions({ ...pos, [d.id]: d.last });
   };
 
-  const card = (id: WidgetId, className: string, children: React.ReactNode, label: string) => {
+  const card = (
+    id: WidgetId,
+    className: string,
+    children: React.ReactNode,
+    label: string,
+    onDoubleClick?: () => void,
+  ) => {
     const p = at(id);
     return (
       <section
@@ -164,6 +296,8 @@ export default function Widgets() {
         onPointerMove={move}
         onPointerUp={end}
         onPointerCancel={end}
+        onDoubleClick={onDoubleClick}
+        title={onDoubleClick ? "Double-click to open" : undefined}
       >
         {children}
       </section>
@@ -187,7 +321,10 @@ export default function Widgets() {
         </>,
         "Sticky note",
       )}
-      {card("music", "os-widget--music", <NowPlayingWidget />, "Now playing widget")}
+      {card("music", "os-widget--music", <NowPlayingWidget />, "Now playing widget (double-click to open Music)", () =>
+        wm.launch("music"),
+      )}
+      {card("weather", "os-widget--weather", <WeatherWidget />, "Dallas weather widget")}
       {card("stack", "os-widget--stack", <StackWidget />, "Tech stack widget")}
     </div>
   );

@@ -1,5 +1,5 @@
 "use client";
-import { memo, useEffect, useState } from "react";
+import { memo, useEffect, useRef, useState } from "react";
 import Image from "next/image";
 import {
   FaCode,
@@ -16,7 +16,7 @@ import {
 import { experiences, projects, type Project } from "@/app/portfolioData";
 import { photos } from "@/app/photos";
 import { AppIcon, EMAIL, LINKS, describe, prefersReducedMotion } from "./appMeta";
-import { MusicApp } from "./Music";
+import { MusicApp, useMusic } from "./Music";
 import { WALLPAPERS, setPrefs, usePrefs, type ThemeMode } from "./prefs";
 import Terminal from "./Terminal";
 import ShubhGPT from "./shubhgpt/ShubhGPT";
@@ -123,7 +123,6 @@ function Shortcuts() {
 }
 
 function AboutApp() {
-  const wm = useWM();
   return (
     <article className="os-doc os-about">
       <header className="os-about-head">
@@ -505,7 +504,7 @@ function ResumeApp() {
           <FaExternalLinkAlt aria-hidden /> Open in new tab
         </ExternalButton>
       </div>
-      <iframe src="/resume.pdf" title="Résumé" className="os-preview-frame" />
+      <iframe src="/resume.pdf#navpanes=0&toolbar=0&view=FitH" title="Résumé" className="os-preview-frame" />
     </div>
   );
 }
@@ -549,33 +548,124 @@ function DemoApp({ project }: { project: Project }) {
   return <div className="os-demo">{project.demoComponent}</div>;
 }
 
+/**
+ * In a slideshow, start the video ourselves. Browsers may refuse autoplay with sound,
+ * so retry muted, and skip the item if even that fails.
+ */
+const startSlideVideo = (skip: () => void) => (el: HTMLVideoElement | null) => {
+  if (!el || !el.paused) return;
+  el.play().catch(() => {
+    el.muted = true;
+    el.play().catch(skip);
+  });
+};
+
+/** Slideshow timing: photos stay this long; videos play through. */
+const SLIDE_MS = 4000;
+const SLIDE_MS_REDUCED = 6000;
+
 function PhotosApp() {
   const [index, setIndex] = useState(0);
+  const [show, setShow] = useState(false);
   const count = photos.length;
   const go = (d: number) => setIndex((i) => (i + d + count) % count);
   const photo = photos[index];
+  const music = useMusic();
+  const swipe = useRef<{ x: number; y: number } | null>(null);
 
   useEffect(() => {
-    if (count < 2) return;
-    // Arrow keys only while the Photos window has focus (Snake also listens to arrows).
+    if (count < 2 && !show) return;
+    // Keys only while the Photos window has focus (Snake also listens to arrows).
     const onKey = (e: KeyboardEvent) => {
+      // Starting the slideshow hides the focused button, so focus may have left the
+      // window: Esc stops a running slideshow wherever focus is.
+      if (e.key === "Escape" && show) {
+        setShow(false);
+        return;
+      }
       const win = document.activeElement?.closest("[data-win-id='photos']");
       if (!win) return;
+      // Arrow keys inside a focused video seek it; don't also switch items.
+      if (document.activeElement instanceof HTMLVideoElement) return;
       if (e.key === "ArrowLeft") setIndex((i) => (i - 1 + count) % count);
       if (e.key === "ArrowRight") setIndex((i) => (i + 1) % count);
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, [count]);
+  }, [count, show]);
+
+  // Slideshow: photos advance on a timer; a video advances when it ends.
+  useEffect(() => {
+    if (!show || !photo || photo.video) return;
+    const t = window.setTimeout(
+      () => setIndex((i) => (i + 1) % count),
+      prefersReducedMotion() ? SLIDE_MS_REDUCED : SLIDE_MS,
+    );
+    return () => window.clearTimeout(t);
+  }, [show, index, photo, count]);
 
   if (!photo) return <div className="os-doc os-center">No photos yet.</div>;
+
+  const meta = [photo.place, photo.date].filter(Boolean).join(" · ");
+  const onPointerDown = (e: React.PointerEvent) => {
+    if (e.target instanceof HTMLVideoElement) return; // let the video's own controls work
+    swipe.current = { x: e.clientX, y: e.clientY };
+  };
+  const onPointerUp = (e: React.PointerEvent) => {
+    const start = swipe.current;
+    swipe.current = null;
+    if (!start) return;
+    const dx = e.clientX - start.x;
+    const dy = e.clientY - start.y;
+    if (Math.abs(dx) > 40 && Math.abs(dx) > Math.abs(dy)) go(dx < 0 ? 1 : -1);
+    else if (show && Math.abs(dx) < 6 && Math.abs(dy) < 6) setShow(false); // a click ends the slideshow
+  };
+
   return (
-    <div className="os-photos">
-      <figure className="os-photo-stage">
-        <div className="os-photo-frame">
-          <Image key={photo.src} src={photo.src} alt={photo.alt} fill sizes="760px" />
+    <div className={`os-photos${show ? " is-slideshow" : ""}`}>
+      <figure
+        className="os-photo-stage"
+        onPointerDown={onPointerDown}
+        onPointerUp={onPointerUp}
+        onPointerCancel={() => (swipe.current = null)}
+        // A mouse drag would otherwise start the browser's native image drag and cancel the swipe.
+        onDragStart={(e) => e.preventDefault()}
+      >
+        <div key={photo.src} className="os-photo-frame">
+          {photo.video ? (
+            <video
+              src={photo.video}
+              poster={photo.src}
+              controls={!show}
+              ref={show ? startSlideVideo(() => go(1)) : undefined}
+              playsInline
+              preload="metadata"
+              aria-label={photo.alt}
+              onPlay={music.pause}
+              onEnded={show ? () => go(1) : undefined}
+              onError={show ? () => go(1) : undefined}
+            />
+          ) : (
+            <Image
+              src={photo.src}
+              alt={photo.alt}
+              fill
+              sizes="760px"
+              className={show ? `os-kenburns os-kenburns--${index % 2 ? "b" : "a"}` : undefined}
+            />
+          )}
         </div>
-        {photo.caption && <figcaption>{photo.caption}</figcaption>}
+        {(photo.caption || meta) && (
+          <figcaption>
+            {photo.caption}
+            {meta && <span className="os-photo-meta">{meta}</span>}
+          </figcaption>
+        )}
+        {show && (
+          <button type="button" className="os-slideshow-stop" onClick={() => setShow(false)}>
+            Stop slideshow <kbd>esc</kbd>
+          </button>
+        )}
       </figure>
       <div className="os-photo-bar">
         <button
@@ -593,11 +683,16 @@ function PhotosApp() {
               <button
                 type="button"
                 className={`os-photo-thumb${i === index ? " is-current" : ""}`}
-                aria-label={p.caption ?? p.alt}
+                aria-label={`${p.video ? "Video: " : ""}${p.caption ?? p.alt}`}
                 aria-current={i === index ? "true" : undefined}
                 onClick={() => setIndex(i)}
               >
                 <Image src={p.src} alt="" fill sizes="64px" />
+                {p.video && (
+                  <span className="os-photo-thumb-play" aria-hidden>
+                    <FaPlay />
+                  </span>
+                )}
               </button>
             </li>
           ))}
@@ -610,6 +705,15 @@ function PhotosApp() {
           onClick={() => go(1)}
         >
           <FaChevronRight aria-hidden />
+        </button>
+        <button
+          type="button"
+          className="aqua-btn"
+          onClick={() => setShow(true)}
+          disabled={!count}
+          title="Play slideshow"
+        >
+          <FaPlay aria-hidden /> Slideshow
         </button>
         <span className="os-photo-count">
           {index + 1} of {count}

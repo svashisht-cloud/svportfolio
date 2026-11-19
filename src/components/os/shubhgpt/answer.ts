@@ -10,11 +10,25 @@ const GREET = /^(hi|hey|hello|yo|sup|hiya|good (morning|afternoon|evening))\b/;
 const THANKS = /\b(thanks|thank you|thx|cheers)\b/;
 
 /**
+ * Easter egg for the offline fallback only. When the model is available it answers
+ * these questions itself from the personal fact in the route's system prompt.
+ */
+const GF = /\b(girl ?friends?|gf|wifey|dating|in a relationship|seeing (anyone|someone)|are you (single|taken))\b/i;
+const GF_ANSWER =
+  "Ah, the important question! 💕 My girlfriend is Riya Bharamaraddi, from Dallas, Texas. Now, back to business: want to hear about my projects?";
+
+export function easterEgg(question: string): Answer | null {
+  return GF.test(question) ? { text: GF_ANSWER, sourceIds: [] } : null;
+}
+
+/**
  * Scripted answers until the real model is connected: score every knowledge entry
  * by how many of its keywords appear in the question, and answer with the best one.
  * Later this becomes a call to /api/shubhgpt that sends KNOWLEDGE to Claude.
  */
 export function answer(question: string): Answer {
+  const egg = easterEgg(question);
+  if (egg) return egg;
   const q = ` ${question.toLowerCase().replace(/[^\p{L}\p{N}+#.\s-]/gu, " ").replace(/\s+/g, " ").trim()} `;
 
   if (GREET.test(q.trim()) && q.trim().split(" ").length <= 3) {

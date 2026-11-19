@@ -36,6 +36,6 @@ The page renders a fixed sidebar (desktop) / mobile nav + a scrollable right pan
 
 **Adding a project:** Add an entry to the `projects` array in `src/app/page.tsx`. Each project object supports `name`, `description`, `image`, an optional `demo` (React component rendered inline), and optional `links`.
 
-**Styling:** Tailwind CSS v4 via PostCSS (`@tailwindcss/postcss`). Theme variables and dark mode are defined in `src/app/globals.css`. Font variables (`--font-geist-sans`, `--font-geist-mono`, `--font-kode-mono`) are set in `src/app/fonts.ts` and applied on `<body>`.
+**Styling:** Tailwind CSS v4 via PostCSS (`@tailwindcss/postcss`). Tailwind is only imported for its base reset; the desktop is styled by `src/components/os/os.css`. `src/app/globals.css` holds the few shared variables used by the demos. Font variables (`--font-geist-sans`, `--font-geist-mono`) are set in `src/app/layout.tsx` and applied on `<body>`.
 
 **Path alias:** `@/*` → `./src/*`.

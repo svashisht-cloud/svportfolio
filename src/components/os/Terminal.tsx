@@ -1,14 +1,16 @@
 "use client";
 import { useCallback, useEffect, useRef, useState } from "react";
 import Image from "next/image";
-import { banner, complete, run, type CommandResult, type TermLine } from "./commands";
+import { banner, complete, run, type CommandResult, type FollowUp, type TermLine } from "./commands";
 import MatrixRain from "./eggs/MatrixRain";
+import { useMusic } from "./Music";
 import { useWM } from "./WindowManager";
 
 /** When the page was loaded, for the banner's "uptime". */
 const PAGE_START = typeof window !== "undefined" ? Date.now() : 0;
 
-type Entry = { kind: "out"; line: TermLine } | { kind: "cmd"; text: string; masked?: boolean };
+/** `label` replaces the shell prompt for answers to a follow-up (e.g. "Password:" or ">"). */
+type Entry = { kind: "out"; line: TermLine } | { kind: "cmd"; text: string; label?: string };
 
 const PROMPT_USER = "shubh@portfolio";
 
@@ -22,13 +24,14 @@ function Prompt() {
 
 export default function Terminal() {
   const wm = useWM();
+  const music = useMusic();
   const [entries, setEntries] = useState<Entry[]>(() =>
     banner(PAGE_START).map((line) => ({ kind: "out", line })),
   );
   const [input, setInput] = useState("");
   const [history, setHistory] = useState<string[]>([]);
   const [histIndex, setHistIndex] = useState<number | null>(null);
-  const [password, setPassword] = useState<CommandResult["password"]>();
+  const [followUp, setFollowUp] = useState<FollowUp>();
   // The avatar sits beside the start-up banner until the screen is cleared.
   const [showAvatar, setShowAvatar] = useState(true);
   const [matrix, setMatrix] = useState(false);
@@ -50,21 +53,37 @@ export default function Terminal() {
       ...(result.clear ? [] : [...prev, echo]),
       ...result.lines.map((line) => ({ kind: "out" as const, line })),
     ]);
-    setPassword(() => result.password);
+    setFollowUp(result.prompt);
   };
 
   const submit = () => {
     const text = input;
     setInput("");
     setHistIndex(null);
-    if (password) {
-      append(password(text), { kind: "cmd", text: "", masked: true });
+    if (followUp) {
+      append(followUp.handle(text), {
+        kind: "cmd",
+        text: followUp.masked ? "" : text,
+        label: followUp.label,
+      });
       return;
     }
     const nextHistory = text.trim() ? [...history, text.trim()] : history;
     setHistory(nextHistory);
     append(
-      run(text, { launch: wm.launch, history: nextHistory, startedAt: PAGE_START }),
+      run(text, {
+        launch: wm.launch,
+        history: nextHistory,
+        startedAt: PAGE_START,
+        music: {
+          index: music.index,
+          playing: music.playing,
+          time: music.time,
+          play: music.play,
+          pause: music.pause,
+          next: music.next,
+        },
+      }),
       { kind: "cmd", text },
     );
   };
@@ -75,7 +94,7 @@ export default function Terminal() {
       submit();
     } else if (e.key === "Tab") {
       e.preventDefault();
-      if (!password) setInput((v) => complete(v));
+      if (!followUp) setInput((v) => complete(v));
     } else if (e.key === "ArrowUp" && history.length) {
       e.preventDefault();
       const i = histIndex === null ? history.length - 1 : Math.max(0, histIndex - 1);
@@ -99,7 +118,7 @@ export default function Terminal() {
       e.preventDefault();
       setEntries((prev) => [...prev, { kind: "cmd", text: `${input}^C` }]);
       setInput("");
-      setPassword(undefined);
+      setFollowUp(undefined);
     }
   };
 
@@ -125,7 +144,7 @@ export default function Terminal() {
         {entries.map((entry, i) =>
           entry.kind === "cmd" ? (
             <div key={i} className="os-term-row">
-              {entry.masked ? <span>Password:</span> : <Prompt />}
+              {entry.label ? <span>{entry.label}&nbsp;</span> : <Prompt />}
               <span>{entry.text}</span>
             </div>
           ) : (
@@ -142,11 +161,11 @@ export default function Terminal() {
         )}
       </div>
       <div className="os-term-row os-term-input-row" ref={endRef}>
-        {password ? <span>Password:&nbsp;</span> : <Prompt />}
+        {followUp ? <span>{followUp.label}&nbsp;</span> : <Prompt />}
         <input
           ref={inputRef}
           className="os-term-input"
-          type={password ? "password" : "text"}
+          type={followUp?.masked ? "password" : "text"}
           value={input}
           onChange={(e) => setInput(e.target.value)}
           onKeyDown={onKeyDown}
@@ -155,7 +174,7 @@ export default function Terminal() {
           autoCapitalize="off"
           autoCorrect="off"
           spellCheck={false}
-          aria-label={password ? "Password" : "Command"}
+          aria-label={followUp ? (followUp.masked ? "Password" : "Answer") : "Command"}
         />
       </div>
     </div>

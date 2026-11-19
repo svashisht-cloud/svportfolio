@@ -4,7 +4,7 @@
 
 - **Framework:** Next.js 15 with App Router, React 19, TypeScript
 - **Styling:** Tailwind CSS v4 via `@tailwindcss/postcss`
-- **Fonts:** Geist + Geist Mono (`next/font/google`), Kode Mono (`src/app/fonts.ts`)
+- **Fonts:** Geist + Geist Mono (`next/font/google`, in `layout.tsx`); the desktop itself uses Lucida Grande-style system fonts from `os.css`
 - **Icons:** react-icons v5
 - **Dev server:** Turbopack (`npm run dev`)
 
@@ -16,13 +16,12 @@ src/
     layout.tsx        — root layout: applies fonts, imports globals.css, sets metadata
     page.tsx          — renders <Desktop/>; nothing else
     portfolioData.tsx — all content: projects[] and experiences[] (+ types)
-    photos.ts         — photos[] shown in the Photos window ({ src, alt, caption?, w, h })
-    songs.ts          — songs[] for the Music window ({ title, artist, src }); files in public/music/
+    photos.ts         — photos[] shown in the Photos window ({ src, alt, caption?, date?, place?, w, h, video? }); a `video` entry uses `src` as its poster; `date` only from the original file's metadata or the owner
+    songs.ts          — songs[] for the Music window ({ title, artist, src, cover? }); files in public/music/ (128 kbps mp3)
     widgets.ts        — text for the sticky-note widget
     resumeText.ts     — plain-text résumé for ShubhGPT (no phone number); update when resume.pdf changes
     knowledge.ts      — ShubhGPT knowledge entries (first-person, generated from portfolioData + About facts)
     globals.css       — Tailwind import, CSS custom properties (still used by the demos)
-    fonts.ts          — Kode Mono font export
   components/
     os/               — the retro Mac OS X–style desktop (see below)
       Desktop.tsx       — root client component: provider, wallpaper, desktop icons, shut-down screen
@@ -38,24 +37,25 @@ src/
       commands.ts       — pure command handlers for the Terminal (run, complete, banner, findTarget)
       BootScreen.tsx    — Boot (first visit per tab) and Login (after Log Out)
       ContextMenu.tsx   — right-click menu (fixed position, clamped to the viewport)
-      Music.tsx         — MusicProvider (single <audio>), MusicApp window, NowPlaying menu-bar item
+      Music.tsx         — MusicProvider (single <audio> + lazy Web Audio AnalyserNode), MusicApp window (turntable stage, canvas Visualizer, EqBars), NowPlaying menu-bar item
       prefs.ts          — wallpaper + appearance store (useSyncExternalStore, localStorage)
       useSelection.ts   — Finder-style selection hook (click, Cmd/Ctrl, Shift, rubber band, keys)
       useTilt.ts        — pointer-follow tilt + shine handlers (sets --rx/--ry/--sx/--sy)
-      Widgets.tsx       — draggable desktop widgets (clock, sticky note, now playing, top tech)
+      Widgets.tsx       — draggable desktop widgets (clock, sticky note, now playing, Dallas weather, top tech); weather comes from Open-Meteo (no key), refreshes every 30 min and is cached in `sessionStorage["sv-os-weather"]`; double-clicking Now Playing launches Music (`card()` takes an optional `onDoubleClick`)
       Calendar.tsx      — month calendar from the menu-bar clock; milestones derived from data
       Toast.tsx         — ToastProvider / useToast() notification bubbles
       sounds.ts         — Web Audio synthesised UI sounds; play(name) is a no-op unless prefs.sound
       shubhgpt/         — ShubhGPT.tsx (chat window) + answer.ts (scripted keyword matching over knowledge.ts)
       eggs/             — Easter eggs: bus.ts (event bus + dev mode), trash.ts, useKonami.ts,
-                          Confetti.tsx, ScreenSaver.tsx, Panic.tsx, MatrixRain.tsx, useShake.ts
+                          Confetti.tsx, ScreenSaver.tsx, Panic.tsx, MatrixRain.tsx, useShake.ts, adventure.ts
       os.css            — all desktop styling (Aqua chrome, cursors, animations, mobile)
     SnakeGame.jsx     + SnakeGame.css
     SearchVisualizer.jsx + SearchVisualizer.css + searchAlgorithms.js
 public/
   os/                 — cursor-arrow.svg, cursor-hand.svg, cursor-wait.svg (retro cursors)
-  music/              — mp3s for the Music window (empty until songs are added)
+  music/              — mp3s for the Music window (trimski.mp3, hotline-bling.mp3; 128 kbps, ~7.6MB total)
   images/             — image assets
+  videos/             — MP4 clips + poster frames for the Photos window
   resume.pdf
 ```
 
@@ -115,13 +115,13 @@ State: `{ wins: WinState[], zTop }`. `WinState` holds `id, kind, title, payload,
 | `work` | Terminal style: `cat README.md` prompt, ROLE/COMPANY/PERIOD/STACK rows, description, `[ OK ]` highlight lines |
 | `experience` | Terminal style `git log --graph`: one fake commit per role (newest first, `HEAD -> main` on the current one); work projects are clickable |
 | `education` | Graduation photo + UMass logo, degree, Aug 2019 – Dec 2022 |
-| `photos` | Viewer: large image, caption, thumbnail strip, prev/next; ←/→ keys while the window is focused |
-| `resume` | Toolbar (Download / Open in new tab) + PDF iframe |
+| `photos` | Viewer: large image or `<video controls>` (for items with `video`), caption, thumbnail strip (videos get a ▶ badge), prev/next; ←/→ keys while the window is focused (ignored while the video itself has focus); swipe left/right on the stage (pointer events, 40px; native image drag is blocked). Caption plus a `place · date` line. ▶ Slideshow: the stage fills the window (bar hidden), photos advance every 4s (6s with reduced motion) with a fade and alternating Ken Burns pan/zoom (`.os-kenburns--a/b`), a video plays through (`startSlideVideo` retries muted if autoplay with sound is refused, else skips) and advances on end; Esc (any focus), a click or the Stop pill ends it. Playing a video pauses the Music player |
+| `resume` | Toolbar (Download / Open in new tab) + PDF iframe (`#navpanes=0&toolbar=0&view=FitH` hides the browser's thumbnail sidebar/toolbar so the page fills the window) |
 | `contact` | Mail compose form that opens a `mailto:` link |
 | `trash`, `help` | Joke / usage tips |
-| `terminal` | Terminal: banner + commands from `commands.ts` (help, whoami, ls, open, run, skills, cat resume, contact, history, date, clear, sudo hire-me). ↑/↓ history, Tab completion, Ctrl+L / Ctrl+C |
+| `terminal` | Terminal: banner + commands from `commands.ts` (help, whoami, ls, open, run, skills, cat resume, contact, play [song]/pause/next/np, neofetch, adventure, history, date, clear, sudo hire-me). `CommandContext.music` exposes the Music player; a `CommandResult.prompt` (`FollowUp`: label, masked?, handle) sends the next input line to a handler instead of the shell (sudo's password, the `eggs/adventure.ts` text adventure). ↑/↓ history, Tab completion (also song titles after `play`), Ctrl+L / Ctrl+C (Ctrl+C also exits a follow-up) |
 | `prefs` | System Preferences: 6 CSS wallpapers + Blue/Graphite appearance (`prefs.ts`) |
-| `music` | Music: transport, LCD display with scrubber, volume, playlist. Playback lives in `MusicProvider`, so it continues when the window is closed |
+| `music` | Music: transport, LCD display with scrubber, shuffle + repeat (off/all/one; `following()` picks a random different song when shuffling; `ended()` handles repeat-one and stops after the last song when repeat is off), volume, turntable stage, playlist. Space / ←/→ while the window is focused (skipped on buttons and sliders). An optional `song.cover` replaces the coloured record label. Playback lives in `MusicProvider`, so it continues when the window is closed. On the first play the provider creates an `AudioContext` and routes the `<audio>` through an `AnalyserNode` (fftSize 128; created once per element, stored in refs; exposed as `analyser()`). The stage (`.os-music-stage`, `--label-hue` per song) shows a vinyl that spins only while playing (`animation-play-state`), a CSS tonearm that swings on/off, and a canvas LED spectrum (`Visualizer`) that reads real frequency data, falls back to a simulated wave without Web Audio, and runs its rAF loop only while playing or decaying. The current playlist row shows animated `EqBars`. All of it stops under `prefers-reduced-motion` |
 | `folder` | An "untitled folder" made from the desktop right-click menu (in memory only) |
 | `info` | Get Info: about the site (no payload) or about a desktop icon (`{ label, target }`) |
 | `shubhgpt` | ShubhGPT chat: speech bubbles, suggested questions, typing dots, word-by-word answers, Email Shubh (opens Mail prefilled via `payload.label`), New chat |
@@ -131,6 +131,8 @@ To add a new kind: extend `AppKind`, then `describe`, `SIZES`, `appName`, `ICONS
 Terminal look: `.os-term` in `os.css` (Geist Mono, dark background, scanlines, blinking caret). Each `Line` fades in 40ms after the previous one. `experience`/`work` windows get the graphite title bar (`.os-window--dark`).
 
 **Adding a photo:** put a resized copy (max ~2000px) in `public/photos/` and add an entry to `src/app/photos.ts`.
+
+**Adding a video:** iPhone clips are HEVC HDR and won't play in most browsers. Convert to SDR H.264: `avconvert --source in.mov --preset Preset1280x720 --output tmp.mp4`, then `ffmpeg -i tmp.mp4 -map 0:v:0 -map 0:a:0 -c:v libx264 -crf 26 -preset slow -r 30 -pix_fmt yuv420p -c:a aac -b:a 128k -movflags +faststart -map_metadata -1 public/videos/name.mp4`. Grab a poster with `ffmpeg -ss 1 -i public/videos/name.mp4 -frames:v 1 -q:v 3 public/videos/name.jpg`, then add an entry with `src` (the poster) and `video`.
 
 ### Theme
 `prefs.theme` is `system | light | dark` (default system). `useEffectiveTheme()` resolves it against `prefers-color-scheme` and Workspace sets `data-theme` on `.os-root`. Dark styles are one override block at the end of `os.css` (`.os-root[data-theme="dark"] …`); already-dark windows (Terminal, Experience, demos) are untouched. Toggles: sun/moon in the menu bar, View menu, System Preferences → Mode.
@@ -151,6 +153,8 @@ Terminal look: `.os-term` in `os.css` (Geist Mono, dark background, scanlines, b
 | Panic / matrix | Terminal `rm -rf /`, `matrix` | `commands.ts` emits `panic` on the bus; `eggs/Panic.tsx`, `eggs/MatrixRain.tsx` |
 | Windows fall | shake a window by its title bar (4 direction flips in 600ms) | `eggs/useShake.ts` → `wm.drop()`; Clean Up restores `fallFrom` |
 | Trash isn't empty | Trash window → Empty Trash | `eggs/trash.ts` store; files return after ~4s; dock shows a full can |
+| Text adventure | Terminal `adventure` | `eggs/adventure.ts`: 6 rooms, coffee + keycard open the corner office; `take resume` opens Résumé, `hire` opens Mail |
+| Girlfriend | ask ShubhGPT about my girlfriend ("gf", "girlfriend", "dating", "are you single"…) | the fact lives in a `PERSONAL` section of the route's system prompt, and the model writes the reply; `easterEgg()` in `shubhgpt/answer.ts` gives a fixed reply only in the offline/scripted fallback |
 | Calendar | click the menu-bar clock | `Calendar.tsx`; badges from role start dates + graduation |
 
 All motion-heavy eggs are skipped under `prefers-reduced-motion`.
@@ -252,9 +256,9 @@ Currently one company (Outrider) with 3 roles and 8 work projects total. Work pr
 - **Per-visitor storage (all wrapped in try/catch):** `localStorage["sv-os-prefs"]` (wallpaper, appearance, theme, sound, widgets), `localStorage["sv-os-widgets"]` (widget positions), `localStorage["sv-snake-best"]`, `sessionStorage["sv-os-booted"]`.
 - **Demos** keep their dark token-based look via `.os-demo`; `os.css` overrides their fixed `vmin` sizes to fit inside windows.
 - **Tailwind utility classes** are still used inside SnakeGame / SearchVisualizer.
-- **Global theme** (`src/app/globals.css`): CSS custom properties `--background`, `--surface`, `--surface-raised`, `--foreground`, `--muted`, `--text-dim`, `--border`, `--accent`, `--accent-hover`, `--accent-secondary`; automatic dark mode via `prefers-color-scheme: dark`.
+- **Global theme** (`src/app/globals.css`): Tailwind import (used only for its base reset) plus `--background`, `--foreground` (the embedded demos) and `--accent` (used across `os.css`).
 
-- **Font variables:** `--font-geist-sans`, `--font-geist-mono` set by Next.js font loader; `kode_mono.className` applied directly to `<body>`.
+- **Font variables:** `--font-geist-sans`, `--font-geist-mono` set by the Next.js font loader on `<body>` (used by the demos, Terminal and Snake/Search CSS).
 
 ## Static Assets (`/public`)
 
@@ -262,14 +266,17 @@ Currently one company (Outrider) with 3 roles and 8 work projects total. Work pr
 |---|---|
 | `images/avatar.jpg` | Profile photo: About window, login screen, Terminal banner (600×600 crop) |
 | `photos/cafe.jpg` | First photo in the Photos viewer |
-| `images/personal.png` | No longer used (replaced by avatar.jpg) |
+| `photos/img-4988.jpg` | Mountain overlook photo (converted from HEIC; EXIF orientation 6, displays 1500×2000) |
+| `photos/snow-day.jpg` | Snow day with friends |
+| `photos/roadside-selfie.jpg` | Selfie beside a race route (1536×2048) |
+| `videos/img-2234.mp4` + `.jpg` | "Leg day" gym clip (720×1280 H.264 SDR, 30s, ~3.3MB) and its poster frame |
 | `images/outrider.jpeg` | Referenced by `experiences[].logo` only; not rendered |
 | `images/umass.png` | Education window |
 | `images/umass-grad.jpg` | Education window + Photos (graduation photo, 643×1200) |
 | `images/arcfield.png` | Arcfield project icon + window screenshot (crop of the live site) |
 | `resume.pdf` | Résumé window (iframe + download), logo menu, desktop icon |
 | `os/cursor-arrow.svg`, `os/cursor-hand.svg`, `os/cursor-wait.svg` | Retro cursors (os.css) |
-| `music/` | Songs for the Music window (listed in `src/app/songs.ts`); empty for now |
+| `music/` | Songs for the Music window (listed in `src/app/songs.ts`): trimski.mp3, hotline-bling.mp3 (128 kbps) |
 | `images/forte2.png` | Forte Resume project icon + window screenshot |
 | `images/MockLoop1.png` | AI Interviewer project icon + window screenshot |
 | `images/windowIcon.png` | Windows XP Clone project icon + window screenshot |

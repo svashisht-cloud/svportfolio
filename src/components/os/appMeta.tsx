@@ -98,7 +98,7 @@ const SIZES: Record<AppKind, [number, number]> = {
   photos: [780, 620],
   terminal: [660, 440],
   prefs: [580, 470],
-  music: [540, 470],
+  music: [580, 540],
   folder: [420, 300],
   info: [320, 400],
   shubhgpt: [460, 640],
