@@ -14,7 +14,7 @@ export interface KnowledgeEntry {
   keywords: string[];
 }
 
-const EMAIL = "nucaluregaming@gmail.com";
+const EMAIL = "shubhv2@gmail.com";
 const LINKS = {
   github: "https://github.com/svashisht-cloud",
   linkedin: "https://www.linkedin.com/in/shubh-vashisht/",

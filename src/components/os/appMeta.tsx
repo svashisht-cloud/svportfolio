@@ -29,7 +29,7 @@ export const DOCK_H = 84;
 export const DOCK_H_MOBILE = 64;
 export const MOBILE_QUERY = "(max-width: 767px)";
 
-export const EMAIL = "nucaluregaming@gmail.com";
+export const EMAIL = "shubhv2@gmail.com";
 export const LINKS = {
   github: "https://github.com/svashisht-cloud",
   linkedin: "https://www.linkedin.com/in/shubh-vashisht/",
