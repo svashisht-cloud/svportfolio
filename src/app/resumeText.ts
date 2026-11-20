@@ -8,7 +8,7 @@
 export const RESUME_TEXT = `Shubh Vashisht
 Software Engineer — Robotics & Autonomy Infrastructure
 Boston, MA · shubhv2@gmail.com
-github.com/svashisht-cloud · linkedin.com/in/shubh-vashisht
+github.com/svashisht-cloud · linkedin.com/in/shubh-vashisht · shubhvashisht.com
 
 SUMMARY
 Software engineer with nearly 4 years at Outrider building software for autonomous yard trucks: on-vehicle data capture, logging, and fleet tooling used by dispatchers and engineers at customer sites. Solo founder of Forte, a paid AI resume SaaS.
