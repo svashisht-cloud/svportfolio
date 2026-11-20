@@ -4,7 +4,7 @@ import { unlock } from "./achievements";
 import { emit } from "./eggs/bus";
 import { log } from "./syslog";
 
-/** Sliding 15-puzzle made from my avatar (a desktop widget). */
+/** Sliding 15-puzzle with numbered tiles: put 1–15 in order (a desktop widget). */
 const SIZE = 4;
 const BLANK = SIZE * SIZE - 1;
 const SOLVED = Array.from({ length: SIZE * SIZE }, (_, i) => i);
@@ -33,6 +33,8 @@ export default function TileGame() {
   const [board, setBoard] = useState<number[]>(SOLVED);
   const [moves, setMoves] = useState(0);
   const [won, setWon] = useState(false);
+  /** While the button is held, the board shows the solved layout (tile by tile); it doesn't count as solving. */
+  const [peek, setPeek] = useState(false);
 
   // Start shuffled (after mount, so the server and first render agree).
   useEffect(() => {
@@ -41,7 +43,7 @@ export default function TileGame() {
   }, []);
 
   const slide = (pos: number) => {
-    if (won) return;
+    if (won || peek) return;
     const blank = board.indexOf(BLANK);
     if (!neighbours(blank).includes(pos)) return;
     const next = [...board];
@@ -60,6 +62,7 @@ export default function TileGame() {
     setBoard(shuffle());
     setMoves(0);
     setWon(false);
+    setPeek(false);
   };
 
   return (
@@ -69,26 +72,52 @@ export default function TileGame() {
         <span className="os-w-dim">{moves} moves</span>
       </div>
       <div className={`os-tiles-grid${won ? " is-won" : ""}`} role="grid" aria-label="Sliding tile puzzle">
-        {board.map((tile, pos) =>
+        {(peek ? SOLVED : board).map((tile, pos) =>
           tile === BLANK && !won ? (
             <span key={pos} className="os-tile is-blank" aria-hidden />
           ) : (
             <button
               key={pos}
               type="button"
-              className="os-tile"
+              className={`os-tile${tile === pos ? " is-home" : ""}`}
               aria-label={`Tile ${tile + 1}`}
               onClick={() => slide(pos)}
-              style={{
-                backgroundPosition: `${((tile % SIZE) * 100) / (SIZE - 1)}% ${(Math.floor(tile / SIZE) * 100) / (SIZE - 1)}%`,
-              }}
-            />
+            >
+              {tile + 1}
+            </button>
           ),
         )}
       </div>
-      <button type="button" className="os-tiles-shuffle" onClick={restart}>
-        Shuffle
-      </button>
+      <div className="os-tiles-actions">
+        {!won && (
+          <button
+            type="button"
+            className={`os-tiles-shuffle${peek ? " is-held" : ""}`}
+            aria-pressed={peek}
+            onPointerDown={(e) => {
+              e.currentTarget.setPointerCapture(e.pointerId);
+              setPeek(true);
+            }}
+            onPointerUp={() => setPeek(false)}
+            onPointerCancel={() => setPeek(false)}
+            onLostPointerCapture={() => setPeek(false)}
+            onKeyDown={(e) => {
+              if ((e.key === " " || e.key === "Enter") && !e.repeat) {
+                e.preventDefault();
+                setPeek(true);
+              }
+            }}
+            onKeyUp={() => setPeek(false)}
+            onBlur={() => setPeek(false)}
+            onContextMenu={(e) => e.preventDefault()}
+          >
+            Hold to see solution
+          </button>
+        )}
+        <button type="button" className="os-tiles-shuffle" onClick={restart}>
+          Shuffle
+        </button>
+      </div>
     </div>
   );
 }

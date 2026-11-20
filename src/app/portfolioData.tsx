@@ -148,7 +148,7 @@ export const projects: Project[] = [
     description:
       "Earlier portfolio site built with React and Three.js — features a 3D animated scene, minimalist layout, smooth scrolling, and a dynamic typing effect.",
     techStack: ["React", "Three.js"],
-    projectUrl: "https://shubhvashisht.com/",
+    projectUrl: "https://og-portfolio-svashisht.vercel.app/",
     role: "Solo developer",
     highlights: ["Three.js 3D scene", "Dynamic typing effect"],
   },

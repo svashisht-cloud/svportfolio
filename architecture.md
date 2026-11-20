@@ -44,7 +44,7 @@ src/
       syslog.ts         — Console log store: log(subsystem, message, level?), last 500 entries, in memory only
       ConsoleApp.tsx    — Console window (subsystem chips, filter, Clear, follows the bottom)
       ActivityApp.tsx   — Activity Monitor: Processes (open windows, DOM nodes, uptime, Quit Process), CPU (rAF fps graph, long tasks, heap), Network (Resource Timing by type, heaviest files)
-      TileGame.tsx      — sliding 15-puzzle widget (avatar), shuffled by legal moves
+      TileGame.tsx      — sliding 15-puzzle widget (numbered Aqua tiles 1–15, a tile in its right place turns green), shuffled by legal moves; "Hold to see solution" shows the solved layout tile by tile while held (doesn't count as solving)
       Spotlight.tsx     — menu-bar search (⌘K / Ctrl+K, "/"): apps, case files, projects, work, skills, résumé lines, Terminal commands, links, "Ask ShubhGPT"
       SystemApps.tsx    — SysInfoApp (About This Developer), SysReportApp (System Report), UpdateApp (Software Update)
       cases/            — Case Files: registry.ts (CASES + facts/story), store.ts (solved ids), CaseFilesApp.tsx (folder), CaseApp.tsx (window), Debrief.tsx (the reveal), IncidentReplay.tsx, BootOrder.tsx
@@ -145,7 +145,7 @@ State: `{ wins: WinState[], zTop }`. `WinState` holds `id, kind, title, payload,
 | `case` | One case file (`cases/CaseApp.tsx`, payload `caseId`): header (company, title, SIMULATED tag), the puzzle (loaded with `next/dynamic`), "Skip to what really happened", then the Debrief once solved or skipped. Dark window |
 | `sysinfo` | About This Developer: photo, headline, version line that cycles on click (Version n.0 → Build: degree → Uptime since the first role), current / previous role, location, status, More Info… (System Report) and Software Update… |
 | `sysreport` | System Report: source list (Overview + the résumé's skill groups). Overview = profile facts + an Impact table; a group = table of skills with clickable evidence chips (`evidenceFor`; 3 shown, "+n more"), or "Listed on my résumé". `payload.label` / `sysreport` bus message selects a skill's group and flashes its row. Path bar at the bottom. Stacks below 520px (container query) |
-| `virtualpc` / `classic` | `RetroApp`: toolbar ("an earlier project of mine", Open in new tab) + iframe of windowsxpsimulator.vercel.app / shubhvashisht.com behind a 1.6s start-up screen. Opened from the SV menu ("Restart in Windows…"), View → Classic Environment, the dock (Virtual PC), "Run it here" on the two project windows, Terminal/Spotlight |
+| `virtualpc` / `classic` | `RetroApp`: toolbar ("an earlier project of mine", Open in new tab) + iframe of windowsxpsimulator.vercel.app / og-portfolio-svashisht.vercel.app behind a 1.6s start-up screen. Opened from the SV menu ("Restart in Windows…"), View → Classic Environment, the dock (Virtual PC), "Run it here" on the two project windows, Terminal/Spotlight |
 | `achievements` | Trophies: progress bar, Bug Hunt panel (Start / n of 10), grid of 18 trophies (??? + hint until unlocked) |
 | `console` | Console (`syslog.ts`) |
 | `activity` | Activity Monitor |

@@ -15,7 +15,7 @@ export const RETRO = {
     title: "Windows XP Clone, running in Virtual PC",
   },
   classic: {
-    url: "https://shubhvashisht.com/",
+    url: "https://og-portfolio-svashisht.vercel.app/",
     project: "Personal Portfolio (Old)",
     booting: "Classic environment starting…",
     title: "My old portfolio, running in Classic",
