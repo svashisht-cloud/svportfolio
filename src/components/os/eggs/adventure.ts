@@ -1,5 +1,6 @@
 import type { CommandResult, TermLine } from "../commands";
 import type { AppKind } from "../types";
+import { unlock } from "../achievements";
 
 /**
  * `adventure`: a tiny text adventure in the Terminal. Find coffee and a keycard to
@@ -130,6 +131,7 @@ function step(state: State, raw: string, launch: (kind: AppKind) => void): Comma
         lines: [
           { text: "You pick up the résumé. Excellent taste.", tone: "ok" },
           { text: "*** You win! *** Opening Résumé…", tone: "title" },
+          ...won(),
         ],
       };
     }
@@ -147,11 +149,18 @@ function step(state: State, raw: string, launch: (kind: AppKind) => void): Comma
       lines: [
         { text: "You start typing a message. Bold move. The right one.", tone: "ok" },
         { text: "*** You win! *** Opening Mail…", tone: "title" },
+        ...won(),
       ],
     };
   }
 
   return next(state, [{ text: "I don't understand that. Type 'help'.", tone: "err" }], launch);
+}
+
+/** Unlocks the achievement; adds no lines (spread into the win message). */
+function won(): TermLine[] {
+  unlock("adventure");
+  return [];
 }
 
 /** Start the adventure. */

@@ -1,5 +1,6 @@
 "use client";
 import { useSyncExternalStore } from "react";
+import { log } from "./syslog";
 
 export const WALLPAPERS = [
   { id: "aqua", name: "Aqua Blue" },
@@ -62,6 +63,7 @@ function snapshot(): Prefs {
 
 export function setPrefs(patch: Partial<Prefs>) {
   current = { ...snapshot(), ...patch };
+  log("Preferences", Object.entries(patch).map(([k, v]) => `${k} = ${v}`).join(", "));
   try {
     window.localStorage.setItem(KEY, JSON.stringify(current));
   } catch {

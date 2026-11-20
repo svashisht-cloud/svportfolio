@@ -7,6 +7,10 @@ import { unlockDevMode } from "./eggs/bus";
 import { play } from "./sounds";
 import { useToast } from "./Toast";
 import { NowPlaying } from "./Music";
+import Spotlight from "./Spotlight";
+import { unlock } from "./achievements";
+import { toSlug } from "./links";
+import { useCopyLink } from "./useCopyLink";
 import { setPrefs, useEffectiveTheme, usePrefs } from "./prefs";
 import { useWM, useWMState } from "./WindowManager";
 
@@ -62,6 +66,13 @@ export default function MenuBar({
   const prefs = usePrefs();
   const toast = useToast();
   const [calendarOpen, setCalendarOpen] = useState(false);
+  const copyLink = useCopyLink();
+  const linkable = !!focused && !!toSlug(focused.kind, focused.payload);
+  const copyItem: MenuEntry = {
+    label: "Copy Link to This Window",
+    disabled: !linkable,
+    run: () => focused && copyLink(focused.kind, focused.payload),
+  };
   const logoClicks = useRef<number[]>([]);
 
   // Easter egg: 7 quick clicks on the logo unlocks "developer mode".
@@ -73,6 +84,7 @@ export default function MenuBar({
     logoClicks.current = [];
     setOpen(null);
     unlockDevMode();
+    unlock("devmode");
     play("pop");
     toast("You are now a developer. Try 'devmode' in Terminal.", "🛠");
     return true;
@@ -107,14 +119,17 @@ export default function MenuBar({
       label: <span className="os-logo">SV</span>,
       aria: "System menu",
       items: [
-        { label: "About This Developer", run: () => wm.launch("about") },
+        { label: "About This Developer", run: () => wm.launch("sysinfo") },
         { label: "About This Site", run: () => wm.launch("info") },
         "sep",
+        { label: "Software Update…", run: () => wm.launch("update") },
+        { label: "Trophies…", run: () => wm.launch("achievements") },
         { label: "System Preferences…", run: () => wm.launch("prefs") },
         "sep",
         { label: "View Résumé", run: () => wm.launch("resume") },
         { label: "Download Résumé", run: downloadResume },
         "sep",
+        { label: "Restart in Windows…", run: () => wm.launch("virtualpc") },
         { label: "Restart…", run: onRestart },
         { label: "Shut Down…", run: onShutDown },
         "sep",
@@ -145,6 +160,8 @@ export default function MenuBar({
         { label: "New Message", run: () => wm.launch("contact") },
         { label: "Open Projects Folder", run: () => wm.launch("projects") },
         "sep",
+        copyItem,
+        "sep",
         {
           label: "Close Window",
           disabled: !focused,
@@ -163,6 +180,10 @@ export default function MenuBar({
         { label: "Projects", run: () => wm.launch("projects") },
         { label: "Experience", run: () => wm.launch("experience") },
         { label: "Education", run: () => wm.launch("education") },
+        "sep",
+        { label: "Classic Environment", run: () => wm.launch("classic") },
+        { label: "Activity Monitor", run: () => wm.launch("activity") },
+        { label: "Console", run: () => wm.launch("console") },
         "sep",
         {
           label: prefs.widgets ? "Hide Widgets" : "Show Widgets",
@@ -197,6 +218,7 @@ export default function MenuBar({
           disabled: !focused,
           run: () => focused && wm.toggleMaximize(focused.id),
         },
+        copyItem,
         ...(wins.length ? (["sep"] as MenuEntry[]) : []),
         ...wins.map((w) => ({
           label: w.minimized ? `◆ ${w.title}` : w.title,
@@ -299,6 +321,7 @@ export default function MenuBar({
           {clock}
         </button>
         {calendarOpen && <Calendar onClose={() => setCalendarOpen(false)} />}
+        <Spotlight />
       </div>
     </header>
   );

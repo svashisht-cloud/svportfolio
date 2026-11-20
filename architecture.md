@@ -14,8 +14,10 @@
 src/
   app/
     layout.tsx        — root layout: applies fonts, imports globals.css, sets metadata
-    page.tsx          — renders <Desktop/>; nothing else
-    portfolioData.tsx — all content: projects[] and experiences[] (+ types)
+    page.tsx          — renders <Desktop/>; generateMetadata() gives a deep link (`?w=`) its own title/description, so `/` renders per request
+    portfolioData.tsx — all content: projects[] and experiences[] (+ types), plus isCurrentRole(), roleStart(), careerSteps() (every role, oldest first, numbered "1.0"…), findWork(name)
+    profile.ts        — recruiter facts (headline, location, status {{TODO}}, previously, education) and impact[] (the résumé's before → after numbers)
+    skills.ts         — SKILL_GROUPS parsed from the résumé's SKILLS section; groupOf(), mentions() (whole-word match), evidenceFor(skill) → matching work items and projects
     photos.ts         — photos[] shown in the Photos window ({ src, alt, caption?, date?, place?, w, h, video? }); a `video` entry uses `src` as its poster; `date` only from the original file's metadata or the owner
     songs.ts          — songs[] for the Music window ({ title, artist, src, cover? }); files in public/music/ (128 kbps mp3)
     widgets.ts        — text for the sticky-note widget
@@ -30,9 +32,22 @@ src/
       apps.tsx          — AppBody (memoized) + one component per window kind
       appMeta.tsx       — constants, links, describe()/defaultSize()/appName(), AppIcon
       FinderSidebar.tsx — pinned Finder sidebar + FinderList (Projects / Experience source list)
-      MenuBar.tsx       — top menu bar with working menus and clock
+      MenuBar.tsx       — top menu bar with working menus and clock; logo menu: About This Developer (sysinfo), About This Site, Software Update…, System Preferences…, résumé, Restart/Shut Down/Log Out
       Dock.tsx          — magnifying dock, running dots, bounce, minimized-window tiles
       types.ts          — AppKind, AppPayload, WinState
+      deliver.ts        — deliver(wm, kind, event, message): open a window with a message, or send it over the bus if it's already open
+      links.ts          — deep links: toSlug/fromSlug/linkFor (`?w=project/forte-resume`, `case/boot-order`, `resume`…); plain module, also used by page.tsx
+      useCopyLink.ts    — copy a window's link to the clipboard + toast
+      RetroApp.tsx      — Virtual PC (Windows XP Clone) and Classic (old portfolio) in an iframe after a short in-window start-up screen
+      achievements.ts   — ACHIEVEMENTS, unlock(), noteRoleSeen(), Bug Hunt store (startBugHunt, squash, BUG_IDS)
+      AchievementsApp.tsx — Trophies window + <Bug id/> (renders only while the hunt is on and that bug isn't found)
+      syslog.ts         — Console log store: log(subsystem, message, level?), last 500 entries, in memory only
+      ConsoleApp.tsx    — Console window (subsystem chips, filter, Clear, follows the bottom)
+      ActivityApp.tsx   — Activity Monitor: Processes (open windows, DOM nodes, uptime, Quit Process), CPU (rAF fps graph, long tasks, heap), Network (Resource Timing by type, heaviest files)
+      TileGame.tsx      — sliding 15-puzzle widget (numbered Aqua tiles 1–15, a tile in its right place turns green), shuffled by legal moves; "Hold to see solution" shows the solved layout tile by tile while held (doesn't count as solving)
+      Spotlight.tsx     — menu-bar search (⌘K / Ctrl+K, "/"): apps, case files, projects, work, skills, résumé lines, Terminal commands, links, "Ask ShubhGPT"
+      SystemApps.tsx    — SysInfoApp (About This Developer), SysReportApp (System Report), UpdateApp (Software Update)
+      cases/            — Case Files: registry.ts (CASES + facts/story), store.ts (solved ids), CaseFilesApp.tsx (folder), CaseApp.tsx (window), Debrief.tsx (the reveal), IncidentReplay.tsx, BootOrder.tsx
       Terminal.tsx      — Terminal window UI (prompt, history, Tab completion)
       commands.ts       — pure command handlers for the Terminal (run, complete, banner, findTarget)
       BootScreen.tsx    — Boot (first visit per tab) and Login (after Log Out)
@@ -43,10 +58,10 @@ src/
       useTilt.ts        — pointer-follow tilt + shine handlers (sets --rx/--ry/--sx/--sy)
       Widgets.tsx       — draggable desktop widgets (clock, sticky note, now playing, Dallas weather, top tech); weather comes from Open-Meteo (no key), refreshes every 30 min and is cached in `sessionStorage["sv-os-weather"]`; double-clicking Now Playing launches Music (`card()` takes an optional `onDoubleClick`)
       Calendar.tsx      — month calendar from the menu-bar clock; milestones derived from data
-      Toast.tsx         — ToastProvider / useToast() notification bubbles
+      Toast.tsx         — ToastProvider / useToast() notification bubbles; toast(text, icon?, { onClick?, ms? }) — with onClick the toast is a button
       sounds.ts         — Web Audio synthesised UI sounds; play(name) is a no-op unless prefs.sound
       shubhgpt/         — ShubhGPT.tsx (chat window) + answer.ts (scripted keyword matching over knowledge.ts)
-      eggs/             — Easter eggs: bus.ts (event bus + dev mode), trash.ts, useKonami.ts,
+      eggs/             — Easter eggs: bus.ts (event bus with an optional string payload + dev mode), trash.ts, useKonami.ts,
                           Confetti.tsx, ScreenSaver.tsx, Panic.tsx, MatrixRain.tsx, useShake.ts, adventure.ts
       os.css            — all desktop styling (Aqua chrome, cursors, animations, mobile)
     SnakeGame.jsx     + SnakeGame.css
@@ -69,7 +84,7 @@ Home (page.tsx)
          └─ ToastProvider          ← toasts (rendered fixed, outside .os-root)
          └─ Workspace              ← .os-root (+ .is-mobile, .is-party, data-appearance, data-theme); owns the stage
             ├─ wallpaper           ← data-wallpaper from prefs
-            ├─ MenuBar             ← menus, NowPlaying, clock
+            ├─ MenuBar             ← menus, NowPlaying, clock, Spotlight
             ├─ FinderSidebar       ← desktop only
             ├─ DesktopIcons        ← desktop only; full-screen layer with useSelection, right-click menu, drag-to-Trash
             ├─ Widgets             ← desktop only, when prefs.widgets
@@ -88,6 +103,7 @@ Home (page.tsx)
 - **Log Out Shubh…** (logo menu): closes all windows → `loggedOut` (Login panel) → click/Enter → `waking`.
 - **Restart…**: closes all windows → `boot`.
 - **Shut Down…**: black overlay with a "Turn it back on" button.
+- **Software Update nudge:** 12s after the desktop appears, a clickable toast ("Shubh 4.0 is available") opens Software Update. Once per browser (`localStorage["sv-os-update-seen"]`); skipped if storage is unavailable.
 
 ```
 ```
@@ -97,7 +113,7 @@ Home (page.tsx)
 State: `{ wins: WinState[], zTop }`. `WinState` holds `id, kind, title, payload, x, y, w, h, z, minimized, maximized, phase, mx, my, prev`.
 
 - **Window identity:** `describe(kind, payload)` gives a stable `id` (`"about"`, `"project:<name>"`, `"work:<name>"`, `"demo:<name>"`, …). Launching an id that is already open focuses it (or restores it if minimized) instead of opening a duplicate.
-- **Actions (`useWM()`):** `launch, activate, focus, close, minimize, restore, toggleMaximize, move, resize`. The actions object is stable; state is in a separate context (`useWMState()` → `{ wins, focused }`), so components that only launch windows don't re-render on every drag.
+- **Actions (`useWM()`):** `launch, activate, focus, close, minimize, restore, toggleMaximize, move, resize, isOpen` (`isOpen(id)` reads the state ref, so callers don't re-render). The actions object is stable; state is in a separate context (`useWMState()` → `{ wins, focused }`), so components that only launch windows don't re-render on every drag.
 - **Phases drive CSS animations:** `opening → open`, `closing → removed`, `minimizing → minimized`, `restoring → open`. Timers are set to 0 under `prefers-reduced-motion`.
 - **Minimize target:** the dock separator marked `data-dock-target="minimized"`; `mx/my` is the offset used by the `os-minimize` keyframes.
 - **Layout:** `workArea()` = right of the sidebar (desktop), between the menu bar (22px) and dock (84px; 64px on mobile). New windows cascade by 26px.
@@ -107,26 +123,37 @@ State: `{ wins: WinState[], zTop }`. `WinState` holds `id, kind, title, payload,
 
 | kind | Content |
 |---|---|
-| `about` | Bio, photo, a row of icon shortcuts that each open a window (`Shortcuts`), quick facts, social links |
+| `about` | Bio, photo, **At a glance** (now / before / based in / open to, from `profile.ts` and the current role; 3 impact tiles from `impact[]`; an "About This Developer…" button), a row of icon shortcuts (`Shortcuts`), quick facts, social links |
 | `finder` | `FinderList` (used as a full-screen window on mobile) |
 | `projects` | Finder icon view of all projects |
 | `project` | Screenshot, role, tags, description, highlights, Launch demo / View live / Source, "Next project" |
 | `demo` | `project.demoComponent` (Snake, Search Visualizer) on a dark background |
-| `work` | Terminal style: `cat README.md` prompt, ROLE/COMPANY/PERIOD/STACK rows, description, `[ OK ]` highlight lines |
-| `experience` | Terminal style `git log --graph`: one fake commit per role (newest first, `HEAD -> main` on the current one); work projects are clickable |
+| `work` | Terminal style: `cat README.md` prompt, ROLE/COMPANY/PERIOD/STACK rows, description, `[ OK ]` highlight lines; "▶ Play the 60-second case file" when a case is about this work (`caseForWork`) |
+| `experience` | Terminal style `git log --graph`, one block per company: one fake commit per role (newest first; `HEAD -> main` on the role whose dates say "Present"); work projects are clickable, and those with a case file get a git-style trailer line, "└─ ▶ play the 60s case file" |
 | `education` | Graduation photo + UMass logo, degree, Aug 2019 – Dec 2022 |
 | `photos` | Viewer: large image or `<video controls>` (for items with `video`), caption, thumbnail strip (videos get a ▶ badge), prev/next; ←/→ keys while the window is focused (ignored while the video itself has focus); swipe left/right on the stage (pointer events, 40px; native image drag is blocked). Caption plus a `place · date` line. ▶ Slideshow: the stage fills the window (bar hidden), photos advance every 4s (6s with reduced motion) with a fade and alternating Ken Burns pan/zoom (`.os-kenburns--a/b`), a video plays through (`startSlideVideo` retries muted if autoplay with sound is refused, else skips) and advances on end; Esc (any focus), a click or the Stop pill ends it. Playing a video pauses the Music player |
 | `resume` | Toolbar (Download / Open in new tab) + PDF iframe (`#navpanes=0&toolbar=0&view=FitH` hides the browser's thumbnail sidebar/toolbar so the page fills the window) |
-| `contact` | Mail compose form that opens a `mailto:` link |
+| `contact` | Mail compose form that opens a `mailto:` link. Body from `payload.label` when it opens; a `compose` bus message replaces it while open |
 | `trash`, `help` | Joke / usage tips |
-| `terminal` | Terminal: banner + commands from `commands.ts` (help, whoami, ls, open, run, skills, cat resume, contact, play [song]/pause/next/np, neofetch, adventure, history, date, clear, sudo hire-me). `CommandContext.music` exposes the Music player; a `CommandResult.prompt` (`FollowUp`: label, masked?, handle) sends the next input line to a handler instead of the shell (sudo's password, the `eggs/adventure.ts` text adventure). ↑/↓ history, Tab completion (also song titles after `play`), Ctrl+L / Ctrl+C (Ctrl+C also exits a follow-up) |
+| `terminal` | Terminal: banner + commands from `commands.ts` (help, whoami, ls, open, run (demos and case files), cases, skills, cat resume, contact, play [song]/pause/next/np, neofetch, adventure, history, date, clear, sudo hire-me). Runs `payload.label` on open (`initialCommand`) and any `terminal` bus message while open, as if typed. `CommandContext.music` exposes the Music player; a `CommandResult.prompt` (`FollowUp`: label, masked?, handle) sends the next input line to a handler instead of the shell (sudo's password, the `eggs/adventure.ts` text adventure). ↑/↓ history, Tab completion (also song titles after `play`), Ctrl+L / Ctrl+C (Ctrl+C also exits a follow-up) |
 | `prefs` | System Preferences: 6 CSS wallpapers + Blue/Graphite appearance (`prefs.ts`) |
 | `music` | Music: transport, LCD display with scrubber, shuffle + repeat (off/all/one; `following()` picks a random different song when shuffling; `ended()` handles repeat-one and stops after the last song when repeat is off), volume, turntable stage, playlist. Space / ←/→ while the window is focused (skipped on buttons and sliders). An optional `song.cover` replaces the coloured record label. Playback lives in `MusicProvider`, so it continues when the window is closed. On the first play the provider creates an `AudioContext` and routes the `<audio>` through an `AnalyserNode` (fftSize 128; created once per element, stored in refs; exposed as `analyser()`). The stage (`.os-music-stage`, `--label-hue` per song) shows a vinyl that spins only while playing (`animation-play-state`), a CSS tonearm that swings on/off, and a canvas LED spectrum (`Visualizer`) that reads real frequency data, falls back to a simulated wave without Web Audio, and runs its rAF loop only while playing or decaying. The current playlist row shows animated `EqBars`. All of it stops under `prefers-reduced-motion` |
 | `folder` | An "untitled folder" made from the desktop right-click menu (in memory only) |
 | `info` | Get Info: about the site (no payload) or about a desktop icon (`{ label, target }`) |
-| `shubhgpt` | ShubhGPT chat: speech bubbles, suggested questions, typing dots, word-by-word answers, Email Shubh (opens Mail prefilled via `payload.label`), New chat |
+| `shubhgpt` | ShubhGPT chat: speech bubbles, suggested questions, typing dots, word-by-word answers, Email Shubh (Mail via `deliver`), New chat. Asks `payload.label` on open (`initialQuestion`) and any `ask` bus message while open |
+| `cases` | Case Files folder (`cases/CaseFilesApp.tsx`): one row per case with tagline and ✓ Solved / ▶ Play; status bar "n of N solved" |
+| `case` | One case file (`cases/CaseApp.tsx`, payload `caseId`): header (company, title, SIMULATED tag), the puzzle (loaded with `next/dynamic`), "Skip to what really happened", then the Debrief once solved or skipped. Dark window |
+| `sysinfo` | About This Developer: photo, headline, version line that cycles on click (Version n.0 → Build: degree → Uptime since the first role), current / previous role, location, status, More Info… (System Report) and Software Update… |
+| `sysreport` | System Report: source list (Overview + the résumé's skill groups). Overview = profile facts + an Impact table; a group = table of skills with clickable evidence chips (`evidenceFor`; 3 shown, "+n more"), or "Listed on my résumé". `payload.label` / `sysreport` bus message selects a skill's group and flashes its row. Path bar at the bottom. Stacks below 520px (container query) |
+| `virtualpc` / `classic` | `RetroApp`: toolbar ("an earlier project of mine", Open in new tab) + iframe of windowsxpsimulator.vercel.app / og-portfolio-svashisht.vercel.app behind a 1.6s start-up screen. Opened from the SV menu ("Restart in Windows…"), View → Classic Environment, the dock (Virtual PC), "Run it here" on the two project windows, Terminal/Spotlight |
+| `achievements` | Trophies: progress bar, Bug Hunt panel (Start / n of 10), grid of 18 trophies (??? + hint until unlocked) |
+| `console` | Console (`syslog.ts`) |
+| `activity` | Activity Monitor |
+| `update` | Software Update: every role as a version (`careerSteps()`), newest marked New; selecting one shows its notes (each work item + its first highlight). Install → Mail via `deliver`; Not Now closes |
 
 To add a new kind: extend `AppKind`, then `describe`, `SIZES`, `appName`, `ICONS` in `appMeta.tsx`, and the `AppBody` switch.
+
+`AppIcon` looks up `case:<caseId>` first for `case` windows, so each case has its own glyph.
 
 Terminal look: `.os-term` in `os.css` (Geist Mono, dark background, scanlines, blinking caret). Each `Line` fades in 40ms after the previous one. `experience`/`work` windows get the graphite title bar (`.os-window--dark`).
 
@@ -155,6 +182,8 @@ Terminal look: `.os-term` in `os.css` (Geist Mono, dark background, scanlines, b
 | Trash isn't empty | Trash window → Empty Trash | `eggs/trash.ts` store; files return after ~4s; dock shows a full can |
 | Text adventure | Terminal `adventure` | `eggs/adventure.ts`: 6 rooms, coffee + keycard open the corner office; `take resume` opens Résumé, `hire` opens Mail |
 | Girlfriend | ask ShubhGPT about my girlfriend ("gf", "girlfriend", "dating", "are you single"…) | the fact lives in a `PERSONAL` section of the route's system prompt, and the model writes the reply; `easterEgg()` in `shubhgpt/answer.ts` gives a fixed reply only in the offline/scripted fallback |
+| Trophies | 18 achievements + Bug Hunt | `achievements.ts`, `AchievementsApp.tsx` |
+| Tile Game | sliding-puzzle widget | `TileGame.tsx` |
 | Calendar | click the menu-bar clock | `Calendar.tsx`; badges from role start dates + graduation |
 
 All motion-heavy eggs are skipped under `prefers-reduced-motion`.
@@ -169,17 +198,17 @@ On the wallpaper: New Folder, Change Desktop Background…, Clean Up (`wm.cleanU
 - Drag by title bar (pointer capture), clamped to the viewport; resize from the bottom-right grip (min 300×200). While dragging, `html.os-dragging` disables iframe pointer events.
 - Traffic lights: close, minimize, zoom (zoom hidden on mobile). Double-click title bar minimizes. Escape closes a focused window.
 - `role="dialog"`. When a window becomes frontmost (and focus isn't already inside it), it focuses its `[data-autofocus]` element (e.g. the Terminal prompt) or itself.
-- Variants by kind: `.os-window--dark` (experience, work, terminal), `.os-window--metal` (music).
+- Variants by kind: `.os-window--dark` (experience, work, terminal, case), `.os-window--metal` (music, shubhgpt).
 - `WindowManager` also has `closeAll()` (Log Out / Restart) and `cleanUp()`; `launch()` briefly adds `html.os-busy` for the spinning-wheel cursor.
 
 ### Dock (`Dock.tsx`)
-Projects, About, ShubhGPT, Experience, one item per project with a `demoComponent`, Résumé, Photos, Music, Terminal, Mail | GitHub, LinkedIn, YouTube | minimized windows | Trash. Magnification uses item centres measured on pointer-enter (mouse only). Items bounce on first launch; a triangle marks open windows.
+Projects, About, ShubhGPT, Experience, Case Files, one item per project with a `demoComponent`, Résumé, Photos, Music, Terminal, Mail | GitHub, LinkedIn, YouTube | minimized windows | Trash. Magnification uses item centres measured on pointer-enter (mouse only). Items bounce on first launch; a triangle marks open windows.
 
 ### FinderList (`FinderSidebar.tsx`)
-Search field (filters projects and work projects by name, tech stack, description), Favorites, Projects (★ = featured), Experience (role groups with disclosure triangles; newest role expanded). The item for the focused window is highlighted.
+Search field (filters projects and work projects by name, tech stack, description), Favorites (incl. Case Files), Projects (★ = featured), Experience (role groups with disclosure triangles; each company's newest role expanded). The item for the focused window is highlighted.
 
 ### Mobile (< 768px)
-`.is-mobile`: no sidebar or desktop icons; every window is full screen between the menu bar and dock; no drag/resize/zoom; dock scrolls horizontally; File/View/Go/Help menus hidden. On load, the Finder window opens under About.
+`.is-mobile`: no sidebar or desktop icons; every window is full screen between the menu bar and dock; no drag/resize/zoom; dock scrolls horizontally; File/View/Go/Help menus hidden; menu-bar icons are slimmer and a long app name gets an ellipsis (96px); Spotlight is a full-width sheet. On load, the Finder window opens under About. Checked at 375px (in a 375px iframe, since Chrome won't shrink below ~600px).
 
 ### ShubhGPT (`shubhgpt/`, `src/app/knowledge.ts`)
 - **Scripted fallback:** `answer(question)` scores every `KNOWLEDGE` entry by whole-word keyword hits and replies with the best one (two if tied); greetings/thanks get small talk; no match gets `FALLBACK`. Answers are first person and never invented: every entry is generated from `portfolioData.tsx` or facts already shown on the site.
@@ -187,6 +216,34 @@ Search field (filters projects and work projects by name, tech stack, descriptio
 - **Config:** `OPENAI_API_KEY` (required) and `OPENAI_MODEL` (default `gpt-5.4-mini`) in `.env.local` locally (git-ignored) or the host's environment settings. Without a key the route returns 503.
 - **Client:** `askShubhGPT(history)` in `answer.ts` calls the route and falls back to the scripted `answer()` on 503/502/network errors; on 429 it shows a "slow down" message. The typing dots stay up at least 600ms. "New chat" drops replies that arrive afterwards.
 - Mail's `ContactApp` accepts `prefill` (from `payload.label`); ShubhGPT reopens Mail if it is already open so the prefill applies.
+
+### Case Files (`cases/`)
+60-second puzzles built from résumé bullets; each ends on a Debrief with the real numbers.
+- **`registry.ts`:** `CASES` — `{ id, title, tag ("SIMULATED …"), tagline, work (exact work-item name), company, facts[{ from?, to, label }], story[], question }`. `caseById`, `caseForWork`. Facts and story use only résumé wording; the puzzles use generic names.
+- **`store.ts`:** solved ids in `localStorage["sv-os-cases"]` (`useSolvedCases()`, `getSolvedCases()` for the Terminal, `markSolved()`).
+- **`CaseApp.tsx`:** header, `<Game key={round}>` (each puzzle via `next/dynamic`), "Skip to what really happened ↓", then `Debrief` (scrolled into view inside the window). "Play again" bumps `round` to remount the puzzle.
+- **`Debrief.tsx`:** facts tiles (struck-through "from" → "to"), "How I built it", buttons: Read the full story (`work` window via `findWork`), Ask ShubhGPT about it (`deliver` → `ask`), Email Shubh (`deliver` → `compose`), Play again.
+- **Incident Replay** (`IncidentReplay.tsx`): reducer state machine (brief → approach → stopped → recording → review → solved; second pass keeps a 30 s buffer), canvas LiDAR scan, slider to scrub; marking a frame from −10 to −6 s solves it.
+- **Point Cloud Diet** (`PointCloudDiet.tsx`): procedural yard sampled into 60k shuffled points, canvas 2D with drag-to-rotate (auto-rotate off with reduced motion); log-scale slider 1k–60k; simulated laptop frame time `2 + n × 0.0022` ms plus the real fps; "Ship it" passes when ≤ 16.7 ms and ≥ 3,500 points.
+- **Slanted Spots** (`SlantedSpots.tsx`): SVG top-down yard, 30 trailers (21 square, 9 at ±15/30/45°); a plate reads when it's within 6px of the capture point; slider = capture offset × sin(angle). Start 70%, best 96.7%; then clicking the one remaining miss (a faded plate, CV model) solves it.
+- **Boot Order** (`BootOrder.tsx`, classes `os-seq-*`; `.os-boot` is the boot screen): drag the `verify-config` card (pointer events, `touch-action: none`) or click one of 3 slots (before the kernel / in Buildroot before ROS / as a ROS service), then "Boot the truck" prints a scripted log line by line; only Buildroot-before-ROS solves it. Tried slots are marked; the pipeline lights stages as the log reaches them. Two columns from 600px (container query); on narrow windows the log scrolls into view when booting.
+- **Ways in:** desktop icon, dock, Finder Favorites, WorkApp button, Experience trailer line, Terminal `cases` / `run <case>`, Spotlight.
+- **To add a case:** an entry in `CASES`, a component in `cases/` taking `{ onSolved }`, a line in `Game` (CaseApp.tsx), and an icon `case:<id>` in `ICONS` (appMeta.tsx).
+
+### Spotlight (`Spotlight.tsx`)
+Magnifier at the right end of the menu bar; ⌘K / Ctrl+K toggles, "/" opens (outside text fields), Esc closes and returns focus, clicking outside closes. Index built once: apps (`APPS` from commands.ts), case files, projects, work items, skills (→ System Report via `deliver`), résumé lines (parsed from `RESUME_TEXT` with their role/company), Terminal commands without arguments (→ Terminal via `deliver`; music, history and clear are skipped), links, plus "Ask ShubhGPT “…”" (→ `deliver` `ask`). Scoring: exact title > title prefix > word prefix > title contains > subtitle/keywords; best match ≥ 55 becomes Top Hit; 4 per group (Résumé and Terminal 3). Combobox + listbox with `aria-activedescendant`; ↑/↓/Enter handled in the field (and stopped from reaching other key listeners).
+
+### Messages between windows (`deliver.ts`, `eggs/bus.ts`)
+`deliver(wm, kind, event, message)`: if the window is open (`wm.isOpen`), `emit(event, message)` and bring it forward; otherwise `launch(kind, { label: message })`. Events: `ask` (ShubhGPT question), `terminal` (command), `sysreport` (skill), `compose` (Mail body). Components keep the latest handler in a ref updated in an effect, and initial messages run in a 0 ms timeout (so React strict mode doesn't run them twice).
+
+### Deep links (`links.ts`)
+`/?w=<slug>` opens that window on load (skips the boot screen, About underneath). The focused window's slug is kept in the address bar with `history.replaceState`, and `document.title` follows; windows without a slug (Trash, folders) leave the URL alone. "Copy Link to This Window" is in the File and Window menus; project windows and case reveals have a Copy link button.
+
+### Achievements + Bug Hunt (`achievements.ts`)
+`unlock(id)` (callable from anywhere, incl. `commands.ts` and `eggs/adventure.ts`) stores the id, logs it and emits `achievement`; Workspace shows a clickable toast that opens Trophies. Triggers: Terminal command, Spotlight result, ShubhGPT question, a work project from every role (`noteRoleSeen` in WorkApp), a case / all cases (`cases/store.ts`), Konami, dev mode, `rm -rf /`, `matrix`, windows falling (`wm.drop`), Empty Trash, Résumé → Trash, `sudo hire-me`, finishing the adventure, Calendar to Jun 2022, solving the Tile Game, all 10 bugs. Help shows the live count. Bug Hunt is opt-in (Trophies → Start); bugs sit in About (Quick facts), Projects status bar, project windows (About heading), Experience (last prompt), work windows (## Highlights), Education, Photos bar, Music bar, System Report path bar, Case Files intro. 10/10 → trophy + confetti.
+
+### Console log (`syslog.ts`)
+Logged: page load timing and screen size (Kernel), window open/close/minimize (WindowServer), music play/pause, ShubhGPT request status + latency (never the question), Spotlight picks, Terminal commands, preferences changes, weather fetches, case solves, achievements, Bug Hunt, Tile Game.
 
 ### Demos
 **SnakeGame** (`src/components/SnakeGame.jsx` + `.css`): 18×18 board, DOM-rendered from refs. Glossy look: checkerboard, gel segments with a head-to-tail colour shift, head with eyes facing `data-dir`, CSS apple, LCD SCORE/BEST (best in `localStorage["sv-snake-best"]`), start screen and Aqua game-over dialog. One animation loop for the component's lifetime; only arrow keys steer, only while its window is active; no reversing into itself.
@@ -244,16 +301,25 @@ interface Experience {
 }
 ```
 
-Currently one company (Outrider) with 3 roles and 8 work projects total. Work projects open as `work` windows with payload `{ work, company, role }`. The company logo is not shown in the desktop UI.
+Two companies, newest first: **Forte** (Founder & Software Engineer, Apr 2026 – Present; 3 work items) and **Outrider** (Intern Jun 2022 – Dec 2022, Associate Dec 2022 – Nov 2024, Software Engineer II Nov 2024 – Mar 2026; 12 work items). Roles, dates and numbers follow `public/resume.pdf` (`resumeText.ts`), which wins when they disagree; items not on the résumé are marked `// Site only.` and were left where they were. Work projects open as `work` windows with payload `{ work, company, role }`. The company logo is not shown in the desktop UI.
 
-**To add a work project:** push a `WorkProject` object into the appropriate `role.projects` array.
+The current role is the one whose `dateRange` contains "Present" (`isCurrentRole`) — used by Experience's HEAD marker, ShubhGPT's knowledge ("Right now I'm…"), About's "Now" line and About This Developer. `careerSteps()` numbers every role as a version for Software Update and About This Developer.
+
+**To add a work project:** push a `WorkProject` object into the appropriate `role.projects` array. Put the strongest number first in `highlights`: Software Update shows the first highlight.
+
+### Recruiter facts (`profile.ts`, `skills.ts`)
+- `profile`: name, headline, location (Boston, MA, from the résumé), `status` ("Open to my next exciting project"), previously, education.
+- `impact[]`: the résumé's before → after numbers (About shows the first 3; System Report shows all).
+- `SKILL_GROUPS`: parsed from the résumé's SKILLS lines ("Label: a, b, c"). `evidenceFor(skill)` matches aliases (e.g. "C++17/20" → C++, PostgreSQL → also Postgres) as whole words in tags, names, descriptions and highlights; short or all-caps names match case-sensitively. No lookbehind (older Safari).
 
 ## Styling
 
 - **Desktop UI:** plain CSS in `src/components/os/os.css` (Aqua-inspired, original drawing; no Apple artwork or fonts are shipped — the font stack prefers Lucida Grande if the visitor has it). Glossy icons are CSS gradient tiles with react-icons glyphs, or the project screenshot.
 - **Retro cursors:** `public/os/cursor-arrow.svg` (default), `cursor-hand.svg` (links/buttons) and `cursor-wait.svg` (while a window opens), set in `os.css`.
 - **Wallpapers / appearance:** `.os-wallpaper[data-wallpaper=…]` and `.os-root[data-appearance="graphite"]` (overrides `--hilite-*`, traffic lights, primary buttons).
-- **Per-visitor storage (all wrapped in try/catch):** `localStorage["sv-os-prefs"]` (wallpaper, appearance, theme, sound, widgets), `localStorage["sv-os-widgets"]` (widget positions), `localStorage["sv-snake-best"]`, `sessionStorage["sv-os-booted"]`.
+- **Per-visitor storage (all wrapped in try/catch):** `localStorage["sv-os-prefs"]` (wallpaper, appearance, theme, sound, widgets), `localStorage["sv-os-widgets"]` (widget positions), `localStorage["sv-snake-best"]`, `localStorage["sv-os-cases"]` (solved case files), `localStorage["sv-os-update-seen"]` (Software Update nudge shown), `localStorage["sv-os-achievements"]`, `localStorage["sv-os-roles-seen"]`, `localStorage["sv-os-bugs"]` (`{ on, found[] }`), `sessionStorage["sv-os-booted"]`.
+- **Music in narrow windows:** `.os-music` is a size container; under 540px the LCD takes its own full-width row, under 380px the volume icons and the spectrum hide.
+- **New-window styles** live in the last section of `os.css` ("Recruiter fast path, Case Files, system windows and Spotlight"), each with its dark-theme override next to it. `.os-todo` marks visible `{{TODO}}` facts. Desktop icons wrap into a second column on short screens (`flex-wrap: wrap-reverse`).
 - **Demos** keep their dark token-based look via `.os-demo`; `os.css` overrides their fixed `vmin` sizes to fit inside windows.
 - **Tailwind utility classes** are still used inside SnakeGame / SearchVisualizer.
 - **Global theme** (`src/app/globals.css`): Tailwind import (used only for its base reset) plus `--background`, `--foreground` (the embedded demos) and `--accent` (used across `os.css`).

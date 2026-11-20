@@ -8,13 +8,15 @@ import {
   FaChevronRight,
   FaExternalLinkAlt,
   FaGithub,
+  FaLink,
   FaLinkedin,
   FaPaperPlane,
   FaPlay,
   FaYoutube,
 } from "react-icons/fa";
-import { experiences, projects, type Project } from "@/app/portfolioData";
+import { experiences, isCurrentRole, projects, type Project } from "@/app/portfolioData";
 import { photos } from "@/app/photos";
+import { impact, profile } from "@/app/profile";
 import { AppIcon, EMAIL, LINKS, describe, prefersReducedMotion } from "./appMeta";
 import { MusicApp, useMusic } from "./Music";
 import { WALLPAPERS, setPrefs, usePrefs, type ThemeMode } from "./prefs";
@@ -23,6 +25,17 @@ import ShubhGPT from "./shubhgpt/ShubhGPT";
 import { useSelection } from "./useSelection";
 import { tiltHandlers } from "./useTilt";
 import { TRASH_FILES, setTrashFull, useTrashFull } from "./eggs/trash";
+import { on } from "./eggs/bus";
+import CaseApp from "./cases/CaseApp";
+import CaseFilesApp from "./cases/CaseFilesApp";
+import { caseForWork } from "./cases/registry";
+import { SysInfoApp, SysReportApp, UpdateApp } from "./SystemApps";
+import { useCopyLink } from "./useCopyLink";
+import AchievementsApp, { Bug } from "./AchievementsApp";
+import ActivityApp from "./ActivityApp";
+import ConsoleApp from "./ConsoleApp";
+import { ACHIEVEMENTS, noteRoleSeen, unlock, useUnlocked } from "./achievements";
+import RetroApp, { RETRO, type RetroKind } from "./RetroApp";
 import { play } from "./sounds";
 import { useToast } from "./Toast";
 import { FinderList } from "./FinderSidebar";
@@ -123,6 +136,10 @@ function Shortcuts() {
 }
 
 function AboutApp() {
+  const wm = useWM();
+  const now = experiences.flatMap((e) =>
+    e.roles.filter(isCurrentRole).map((r) => `${r.title}, ${e.company}`),
+  );
   return (
     <article className="os-doc os-about">
       <header className="os-about-head">
@@ -140,6 +157,43 @@ function AboutApp() {
           </p>
         </div>
       </header>
+      <section className="os-glance" aria-label="At a glance">
+        <dl className="os-glance-list">
+          {now.length > 0 && (
+            <div>
+              <dt>Now</dt>
+              <dd>{now.join(" · ")}</dd>
+            </div>
+          )}
+          <div>
+            <dt>Before</dt>
+            <dd>{profile.previously}</dd>
+          </div>
+          <div>
+            <dt>Based in</dt>
+            <dd>{profile.location}</dd>
+          </div>
+          <div>
+            <dt>Open to</dt>
+            <dd>{profile.status}</dd>
+          </div>
+        </dl>
+        <ul className="os-impact" aria-label="Impact">
+          {impact.slice(0, 3).map((i) => (
+            <li key={i.label}>
+              <span className="os-impact-num">
+                <s>{i.from}</s> <span>→ {i.to}</span>
+              </span>
+              <span className="os-impact-label">{i.label}</span>
+            </li>
+          ))}
+        </ul>
+        <div className="os-glance-actions">
+          <button className="aqua-btn" type="button" onClick={() => wm.launch("sysinfo")}>
+            About This Developer…
+          </button>
+        </div>
+      </section>
       <p>
         Software engineer with 4+ years building production systems across AI, distributed
         robotics platforms, and full-stack web. I focus on developer tools, language model
@@ -147,7 +201,9 @@ function AboutApp() {
       </p>
       <Shortcuts />
 
-      <h3>Quick facts</h3>
+      <h3>
+        Quick facts <Bug id="about" />
+      </h3>
       <dl className="os-facts">
         {[
           ["Born", "2000"],
@@ -219,7 +275,9 @@ function ProjectsFolderApp() {
           </li>
         ))}
       </ul>
-      <footer className="os-statusbar">{status}</footer>
+      <footer className="os-statusbar">
+        {status} <Bug id="projects" />
+      </footer>
       {sel.band && <div className="os-band" style={sel.band} aria-hidden />}
     </div>
   );
@@ -227,6 +285,9 @@ function ProjectsFolderApp() {
 
 function ProjectApp({ project }: { project: Project }) {
   const wm = useWM();
+  const copyLink = useCopyLink();
+  // Earlier projects that run in a window here (Virtual PC, Classic).
+  const runsHere = (Object.keys(RETRO) as RetroKind[]).find((k) => RETRO[k].project === project.name);
   const index = projects.findIndex((p) => p.name === project.name);
   const next = projects[(index + 1) % projects.length];
   return (
@@ -248,10 +309,21 @@ function ProjectApp({ project }: { project: Project }) {
         <h1>{project.name}</h1>
         {project.role && <p className="os-meta">{project.role}</p>}
         <Tags tags={project.techStack} />
-        <h3>About</h3>
+        <h3>
+          About <Bug id="project" />
+        </h3>
         <p>{project.description}</p>
         <Highlights items={project.highlights} />
         <div className="os-actions">
+          {runsHere && (
+            <button
+              type="button"
+              className="aqua-btn aqua-btn--primary"
+              onClick={() => wm.launch(runsHere)}
+            >
+              <FaPlay aria-hidden /> Run it here
+            </button>
+          )}
           {project.demoComponent && (
             <button
               type="button"
@@ -262,7 +334,7 @@ function ProjectApp({ project }: { project: Project }) {
             </button>
           )}
           {project.projectUrl && (
-            <ExternalButton href={project.projectUrl} primary={!project.demoComponent}>
+            <ExternalButton href={project.projectUrl} primary={!project.demoComponent && !runsHere}>
               <FaExternalLinkAlt aria-hidden /> View live
             </ExternalButton>
           )}
@@ -271,6 +343,9 @@ function ProjectApp({ project }: { project: Project }) {
               <FaCode aria-hidden /> Source
             </ExternalButton>
           )}
+          <button type="button" className="aqua-btn" onClick={() => copyLink("project", { project })}>
+            <FaLink aria-hidden /> Copy link
+          </button>
         </div>
         {next && next.name !== project.name && (
           <button
@@ -322,8 +397,16 @@ function Line({
 }
 
 function WorkApp({ payload }: { payload: AppPayload }) {
+  const wm = useWM();
   const work = payload.work;
+  const company = payload.company;
+  const roleTitle = payload.role?.title;
+  // Trophy "Due Diligence": a project from every role has been opened.
+  useEffect(() => {
+    if (company && roleTitle) noteRoleSeen(company, roleTitle);
+  }, [company, roleTitle]);
   if (!work) return null;
+  const playable = caseForWork(work.name);
   let n = 0;
   return (
     <article className="os-term">
@@ -367,7 +450,7 @@ function WorkApp({ payload }: { payload: AppPayload }) {
       {work.highlights?.length ? (
         <>
           <Line i={n++} className="os-term-comment">
-            ## Highlights
+            ## Highlights <Bug id="work" />
           </Line>
           {work.highlights.map((h) => (
             <Line key={h} i={n++}>
@@ -376,6 +459,19 @@ function WorkApp({ payload }: { payload: AppPayload }) {
           ))}
         </>
       ) : null}
+      {playable && (
+        <Line i={n++}>
+          <div className="os-actions">
+            <button
+              type="button"
+              className="aqua-btn aqua-btn--primary"
+              onClick={() => wm.launch("case", { caseId: playable.id })}
+            >
+              <FaPlay aria-hidden /> Play the 60-second case file
+            </button>
+          </div>
+        </Line>
+      )}
       {(work.projectUrl || work.codeUrl) && (
         <Line i={n++}>
           <div className="os-actions">
@@ -419,7 +515,7 @@ function ExperienceApp() {
                   <Line i={n++}>
                     <span className="os-git-graph">*</span>{" "}
                     <span className="os-git-hash">commit {hash(role.title)}</span>
-                    {r === 0 && <span className="os-git-ref"> (HEAD -&gt; main)</span>}
+                    {isCurrentRole(role) && <span className="os-git-ref"> (HEAD -&gt; main)</span>}
                   </Line>
                   <Line i={n++}>
                     <span className="os-git-graph">|</span> Date: {role.dateRange}
@@ -430,21 +526,39 @@ function ExperienceApp() {
                     <span className="os-term-dim"> @ {exp.company}</span>
                   </Line>
                   <ul>
-                    {role.projects.map((w) => (
-                      <Line key={w.name} i={n++} as="li">
-                        <span className="os-git-graph">|</span>{" "}
-                        <span className="os-term-dim">+</span>{" "}
-                        <button
-                          type="button"
-                          className="os-term-link"
-                          onClick={() =>
-                            wm.launch("work", { work: w, company: exp.company, role })
-                          }
-                        >
-                          {w.name}
-                        </button>
-                      </Line>
-                    ))}
+                    {role.projects.map((w) => {
+                      const playable = caseForWork(w.name);
+                      return (
+                        <Line key={w.name} i={n++} as="li">
+                          <span className="os-git-graph">|</span>{" "}
+                          <span className="os-term-dim">+</span>{" "}
+                          <button
+                            type="button"
+                            className="os-term-link"
+                            onClick={() =>
+                              wm.launch("work", { work: w, company: exp.company, role })
+                            }
+                          >
+                            {w.name}
+                          </button>
+                          {playable && (
+                            // A git-style trailer line under the item, so it never wraps mid-row.
+                            <span className="os-term-trailer">
+                              <span className="os-git-graph">|</span>{"   "}
+                              <span className="os-term-dim">└─</span>{" "}
+                              <button
+                                type="button"
+                                className="os-term-play"
+                                onClick={() => wm.launch("case", { caseId: playable.id })}
+                                aria-label={`Play the 60-second case file about ${w.name}`}
+                              >
+                                ▶ play the 60s case file
+                              </button>
+                            </span>
+                          )}
+                        </Line>
+                      );
+                    })}
                   </ul>
                   {r < roles.length - 1 && (
                     <Line i={n++}>
@@ -458,7 +572,8 @@ function ExperienceApp() {
         );
       })}
       <Line i={n++} className="os-term-prompt">
-        <span className="os-term-path">~/career</span> % <span className="os-term-caret" aria-hidden />
+        <span className="os-term-path">~/career</span> % <span className="os-term-caret" aria-hidden />{" "}
+        <Bug id="experience" />
       </Line>
     </article>
   );
@@ -487,7 +602,9 @@ function EducationApp() {
         <p className="os-meta">Bachelor&apos;s in Computer Science</p>
         <p className="os-edu-dates">Aug 2019 – Dec 2022</p>
         <p>Where I learned to build things that actually work, preferably on the first try.</p>
-        <p className="os-meta">Finished a semester ahead of schedule.</p>
+        <p className="os-meta">
+          Finished a semester ahead of schedule. <Bug id="education" />
+        </p>
       </div>
     </article>
   );
@@ -512,6 +629,14 @@ function ResumeApp() {
 function ContactApp({ prefill }: { prefill?: string }) {
   const [subject, setSubject] = useState("Hello from your portfolio");
   const [body, setBody] = useState(prefill ?? "");
+  // A new message sent while Mail is already open (ShubhGPT, case files, Software Update).
+  useEffect(
+    () =>
+      on("compose", (text) => {
+        if (text !== undefined) setBody(text);
+      }),
+    [],
+  );
   const send = (e: React.FormEvent) => {
     e.preventDefault();
     const url = `mailto:${EMAIL}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
@@ -718,6 +843,7 @@ function PhotosApp() {
         <span className="os-photo-count">
           {index + 1} of {count}
         </span>
+        <Bug id="photos" />
       </div>
     </div>
   );
@@ -865,6 +991,7 @@ function TrashApp() {
 
   const empty = () => {
     play("trash");
+    unlock("trash");
     setCrumpling(true);
     window.setTimeout(() => {
       setCrumpling(false);
@@ -916,6 +1043,8 @@ function TrashApp() {
 }
 
 function HelpApp() {
+  const wm = useWM();
+  const unlocked = useUnlocked();
   return (
     <article className="os-doc">
       <h1>Using this portfolio</h1>
@@ -929,12 +1058,25 @@ function HelpApp() {
           then double-click (or press Enter) to open them all.
         </li>
         <li>Right-click the desktop for more options, including a new wallpaper.</li>
+        <li>
+          Case Files (on the desktop and in the dock) are 60-second puzzles built from my real work.
+          Each one ends with what actually happened.
+        </li>
+        <li>
+          Press ⌘K (Ctrl+K) or / to search everything: projects, skills, my résumé and Terminal
+          commands.
+        </li>
+        <li>The SV menu has About This Developer and Software Update.</li>
         <li>Open Terminal from the dock and type &lsquo;help&rsquo;.</li>
         <li>Ask ShubhGPT (the speech bubble in the dock) anything about my work.</li>
         <li>Click the moon or sun in the menu bar to switch between dark and light mode.</li>
         <li>
-          Secrets: there are 8 hidden things on this desktop. The keyboard, the logo, the clock and
-          the Trash are good places to start.
+          Secrets: you&apos;ve unlocked {unlocked.length} of {ACHIEVEMENTS.length} trophies. The
+          keyboard, the logo, the clock and the Trash are good places to start.{" "}
+          <button type="button" className="os-linkish" onClick={() => wm.launch("achievements")}>
+            Open Trophies
+          </button>{" "}
+          (it also starts the Bug Hunt).
         </li>
         <li>In Photos, use the left and right arrow keys to flip through pictures.</li>
         <li>Snake and the Search Visualizer run right here: open them from the dock.</li>
@@ -974,7 +1116,7 @@ export const AppBody = memo(function AppBody({
     case "contact":
       return <ContactApp prefill={payload?.label} />;
     case "shubhgpt":
-      return <ShubhGPT />;
+      return <ShubhGPT initialQuestion={payload?.label} />;
     case "trash":
       return <TrashApp />;
     case "help":
@@ -982,7 +1124,7 @@ export const AppBody = memo(function AppBody({
     case "photos":
       return <PhotosApp />;
     case "terminal":
-      return <Terminal />;
+      return <Terminal initialCommand={payload?.label} />;
     case "prefs":
       return <PrefsApp />;
     case "music":
@@ -991,5 +1133,24 @@ export const AppBody = memo(function AppBody({
       return <FolderApp name={payload?.label ?? "untitled folder"} />;
     case "info":
       return <InfoApp payload={payload} />;
+    case "cases":
+      return <CaseFilesApp />;
+    case "case":
+      return <CaseApp caseId={payload?.caseId} />;
+    case "sysinfo":
+      return <SysInfoApp />;
+    case "sysreport":
+      return <SysReportApp focus={payload?.label} />;
+    case "update":
+      return <UpdateApp />;
+    case "virtualpc":
+    case "classic":
+      return <RetroApp kind={kind} />;
+    case "achievements":
+      return <AchievementsApp />;
+    case "console":
+      return <ConsoleApp />;
+    case "activity":
+      return <ActivityApp />;
   }
 });

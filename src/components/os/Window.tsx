@@ -124,7 +124,7 @@ export default function Window({
         "os-window",
         `phase-${win.phase}`,
         focused ? "is-focused" : "is-inactive",
-        win.kind === "experience" || win.kind === "work" || win.kind === "terminal"
+        win.kind === "experience" || win.kind === "work" || win.kind === "terminal" || win.kind === "case"
           ? "os-window--dark"
           : "",
         win.kind === "music" || win.kind === "shubhgpt" ? "os-window--metal" : "",

@@ -5,7 +5,10 @@ import { FaEnvelope, FaPaperPlane, FaRedo, FaUser } from "react-icons/fa";
 import { GREETING } from "@/app/knowledge";
 import { prefersReducedMotion } from "../appMeta";
 import { play } from "../sounds";
-import { useWM, useWMState } from "../WindowManager";
+import { deliver } from "../deliver";
+import { on } from "../eggs/bus";
+import { unlock } from "../achievements";
+import { useWM } from "../WindowManager";
 import { askShubhGPT, type ChatTurn } from "./answer";
 
 interface Message {
@@ -30,10 +33,13 @@ const words = (t: string) => t.split(/(\s+)/);
 /** The greeting is always message 0; later ids come from a per-chat counter. */
 const greeting = (): Message => ({ id: 0, from: "bot", text: GREETING, shown: words(GREETING).length });
 
-/** Chat with an early-2000s Mac messenger look. Scripted answers for now (see answer.ts). */
-export default function ShubhGPT() {
+/**
+ * Chat with an early-2000s Mac messenger look (see answer.ts for how replies are made).
+ * `initialQuestion` is asked as soon as the window opens; questions sent over the bus
+ * ("ask", from Spotlight or a case file) are asked while it's open.
+ */
+export default function ShubhGPT({ initialQuestion }: { initialQuestion?: string }) {
   const wm = useWM();
-  const { wins } = useWMState();
   const [messages, setMessages] = useState<Message[]>(() => [greeting()]);
   const [input, setInput] = useState("");
   const [typing, setTyping] = useState(false);
@@ -78,6 +84,7 @@ export default function ShubhGPT() {
     const question = q.trim();
     if (!question || typing) return;
     play("click");
+    unlock("shubhgpt");
     setInput("");
     const userId = nextId.current++;
     const botId = nextId.current++;
@@ -122,14 +129,30 @@ export default function ShubhGPT() {
     const body = lastUser
       ? `Hi Shubh,\n\nI asked ShubhGPT: "${lastUser.text}"\n${lastBot ? `It said: "${lastBot.text}"\n` : ""}\n`
       : "Hi Shubh,\n\n";
-    // Mail fills its message only when it opens, so reopen it if it's already up.
-    if (wins.some((w) => w.id === "contact")) {
-      wm.close("contact");
-      later(240, () => wm.launch("contact", { label: body }));
-    } else {
-      wm.launch("contact", { label: body });
-    }
+    deliver(wm, "contact", "compose", body);
   };
+
+  // Questions from elsewhere: the one this window opened with, then any sent while it's open.
+  const askRef = useRef(ask);
+  useEffect(() => {
+    askRef.current = ask;
+  });
+  const askedInitial = useRef(false);
+  useEffect(() => {
+    if (!initialQuestion || askedInitial.current) return;
+    const t = window.setTimeout(() => {
+      askedInitial.current = true;
+      void askRef.current(initialQuestion);
+    }, 0);
+    return () => window.clearTimeout(t);
+  }, [initialQuestion]);
+  useEffect(
+    () =>
+      on("ask", (q) => {
+        if (q) void askRef.current(q);
+      }),
+    [],
+  );
 
   return (
     <div className="os-chat">

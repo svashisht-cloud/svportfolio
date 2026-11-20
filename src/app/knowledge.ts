@@ -1,4 +1,4 @@
-import { experiences, projects } from "./portfolioData";
+import { experiences, isCurrentRole, projects } from "./portfolioData";
 
 /**
  * What ShubhGPT knows: short first-person entries built only from facts already on
@@ -38,8 +38,8 @@ function roleEntries(): KnowledgeEntry[] {
   const out: KnowledgeEntry[] = [];
   for (const exp of experiences) {
     const roles = [...exp.roles].reverse();
-    roles.forEach((role, idx) => {
-      const current = idx === 0;
+    roles.forEach((role) => {
+      const current = isCurrentRole(role);
       const work = role.projects.map((w) => w.name);
       out.push({
         id: `role-${role.title.toLowerCase().replace(/\W+/g, "-")}`,
@@ -85,7 +85,6 @@ function projectEntries(): KnowledgeEntry[] {
 }
 
 const top = skillCounts().slice(0, 8).map(([name]) => name);
-const allCompanies = [...new Set(experiences.map((e) => e.company))];
 
 export const KNOWLEDGE: KnowledgeEntry[] = [
   {
@@ -100,9 +99,9 @@ export const KNOWLEDGE: KnowledgeEntry[] = [
     id: "robotics",
     title: "Robotics work",
     text:
-      `Most of my professional work has been on robotics platforms at ${list(allCompanies)}: ` +
-      "real-time fleet operations dashboards for autonomous yard trucks, ROS log streaming and filtering, remote support and telemetry, " +
-      "browser-based 3D visualization, onboard runtime service management in C++ on Linux, and configuration verification built on state machines.",
+      "Most of my professional work has been on robotics platforms at Outrider (autonomous yard trucks): " +
+      "event-triggered LiDAR recording, live ROS log streaming and filtering, mission-bag upload to S3, fleet operations dashboards, " +
+      "a browser-based 3D yard view, onboard runtime service management in C++ on Linux, and configuration verification in Buildroot.",
     keywords: ["robot", "robotics", "ros", "autonomous", "autonomy", "fleet", "truck", "lidar", "telemetry", "c++"],
   },
   {

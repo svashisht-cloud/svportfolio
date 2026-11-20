@@ -1,3 +1,4 @@
+import { log } from "../syslog";
 import { FALLBACK, KNOWLEDGE, type KnowledgeEntry } from "@/app/knowledge";
 
 export interface Answer {
@@ -69,6 +70,8 @@ export interface ChatTurn {
  */
 export async function askShubhGPT(history: ChatTurn[]): Promise<Answer & { live: boolean }> {
   const question = history[history.length - 1]?.content ?? "";
+  const started = performance.now();
+  const took = () => `${Math.round(performance.now() - started)} ms`;
   try {
     const res = await fetch("/api/shubhgpt", {
       method: "POST",
@@ -76,6 +79,7 @@ export async function askShubhGPT(history: ChatTurn[]): Promise<Answer & { live:
       body: JSON.stringify({ messages: history }),
     });
     if (res.status === 429) {
+      log("ShubhGPT", `POST /api/shubhgpt 429 (rate limited) in ${took()}`, "warn");
       return {
         text: "You've asked me a lot in a short time! Give it a little while, or use the Email Shubh button and I'll reply properly.",
         sourceIds: [],
@@ -85,8 +89,10 @@ export async function askShubhGPT(history: ChatTurn[]): Promise<Answer & { live:
     if (!res.ok) throw new Error(String(res.status));
     const data = (await res.json()) as { text?: string };
     if (!data.text) throw new Error("empty");
+    log("ShubhGPT", `POST /api/shubhgpt 200 in ${took()}`);
     return { text: data.text, sourceIds: [], live: true };
-  } catch {
+  } catch (err) {
+    log("ShubhGPT", `live model unavailable (${err instanceof Error ? err.message : "error"}); scripted answer`, "warn");
     return { ...answer(question), live: false };
   }
 }

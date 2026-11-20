@@ -2,6 +2,9 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import Image from "next/image";
 import { banner, complete, run, type CommandResult, type FollowUp, type TermLine } from "./commands";
+import { on } from "./eggs/bus";
+import { log } from "./syslog";
+import { unlock } from "./achievements";
 import MatrixRain from "./eggs/MatrixRain";
 import { useMusic } from "./Music";
 import { useWM } from "./WindowManager";
@@ -22,7 +25,11 @@ function Prompt() {
   );
 }
 
-export default function Terminal() {
+/**
+ * `initialCommand` runs as soon as the window opens; commands sent over the bus ("terminal",
+ * from Spotlight) run while it's open, as if typed.
+ */
+export default function Terminal({ initialCommand }: { initialCommand?: string }) {
   const wm = useWM();
   const music = useMusic();
   const [entries, setEntries] = useState<Entry[]>(() =>
@@ -68,6 +75,15 @@ export default function Terminal() {
       });
       return;
     }
+    runCommand(text);
+  };
+
+  /** Run a shell command as if it had been typed. Ends any follow-up (sudo, adventure). */
+  const runCommand = (text: string) => {
+    if (text.trim()) {
+      log("Terminal", `$ ${text.trim()}`);
+      unlock("hello");
+    }
     const nextHistory = text.trim() ? [...history, text.trim()] : history;
     setHistory(nextHistory);
     append(
@@ -87,6 +103,27 @@ export default function Terminal() {
       { kind: "cmd", text },
     );
   };
+
+  const runRef = useRef(runCommand);
+  useEffect(() => {
+    runRef.current = runCommand;
+  });
+  const ranInitial = useRef(false);
+  useEffect(() => {
+    if (!initialCommand || ranInitial.current) return;
+    const t = window.setTimeout(() => {
+      ranInitial.current = true;
+      runRef.current(initialCommand);
+    }, 0);
+    return () => window.clearTimeout(t);
+  }, [initialCommand]);
+  useEffect(
+    () =>
+      on("terminal", (cmd) => {
+        if (cmd) runRef.current(cmd);
+      }),
+    [],
+  );
 
   const onKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
     if (e.key === "Enter") {

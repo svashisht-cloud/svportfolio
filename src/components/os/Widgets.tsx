@@ -16,13 +16,15 @@ import { stickyNote } from "@/app/widgets";
 import { SIDEBAR_W } from "./appMeta";
 import { skillCounts } from "./commands";
 import { useMusic } from "./Music";
+import { log } from "./syslog";
+import TileGame from "./TileGame";
 import { useWM } from "./WindowManager";
 
-type WidgetId = "clock" | "note" | "music" | "weather" | "stack";
+type WidgetId = "clock" | "note" | "music" | "weather" | "stack" | "tile";
 type Positions = Partial<Record<WidgetId, { x: number; y: number }>>;
 
 const KEY = "sv-os-widgets";
-const ORDER: WidgetId[] = ["clock", "note", "music", "weather", "stack"];
+const ORDER: WidgetId[] = ["clock", "note", "music", "weather", "stack", "tile"];
 
 function loadPositions(): Positions {
   try {
@@ -43,6 +45,8 @@ function savePositions(p: Positions) {
 /** Default spots: a column to the left of the desktop icons. */
 function defaultPosition(id: WidgetId) {
   const i = ORDER.indexOf(id);
+  // The tile puzzle starts in a second column, left of the others.
+  if (id === "tile") return { x: Math.max(SIDEBAR_W + 40, window.innerWidth - 120 - 210 - 222), y: 270 };
   const heights = [0, 172, 330, 420, 520];
   return { x: Math.max(SIDEBAR_W + 40, window.innerWidth - 120 - 210), y: 40 + heights[i] };
 }
@@ -180,11 +184,13 @@ function WeatherWidget() {
         } catch {
           // No storage: it just refetches next time.
         }
+        log("Weather", `Dallas ${next.temp}°F, ${describeWx(next.code, next.day).label.toLowerCase()} (Open-Meteo)`);
         if (alive) {
           setWx(next);
           setFailed(false);
         }
       } catch {
+        log("Weather", "Open-Meteo request failed", "warn");
         if (alive) setFailed(true);
       }
     };
@@ -326,6 +332,7 @@ export default function Widgets() {
       )}
       {card("weather", "os-widget--weather", <WeatherWidget />, "Dallas weather widget")}
       {card("stack", "os-widget--stack", <StackWidget />, "Tech stack widget")}
+      {card("tile", "os-widget--tile", <TileGame />, "Sliding tile puzzle widget")}
     </div>
   );
 }

@@ -22,6 +22,7 @@ const APPS: DockItem[] = [
   { key: "about", label: "About Me", kind: "about" },
   { key: "shubhgpt", label: "ShubhGPT", kind: "shubhgpt" },
   { key: "experience", label: "Experience", kind: "experience" },
+  { key: "cases", label: "Case Files", kind: "cases" },
   ...demos.map((p) => ({
     key: `demo:${p.name}`,
     label: p.name,
@@ -32,6 +33,7 @@ const APPS: DockItem[] = [
   { key: "photos", label: "Photos", kind: "photos" },
   { key: "music", label: "Music", kind: "music" },
   { key: "terminal", label: "Terminal", kind: "terminal" },
+  { key: "virtualpc", label: "Virtual PC", kind: "virtualpc" },
   { key: "contact", label: "Mail", kind: "contact" },
 ];
 
