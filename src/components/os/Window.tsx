@@ -43,12 +43,14 @@ export default function Window({
   // Move keyboard focus into a newly opened window: its marked input if it has one
   // (e.g. the Terminal prompt), otherwise the window itself.
   // Also when an existing window is brought to the front from elsewhere (dock, menu, sidebar).
+  // Phones focus only the window: focusing an input would pop the keyboard up unasked, and
+  // Safari restores that focus (and can zoom in) when you come back from another tab.
   useEffect(() => {
     const el = ref.current;
     if (!focused || !el || el.contains(document.activeElement)) return;
-    const target = el.querySelector<HTMLElement>("[data-autofocus]") ?? el;
+    const target = (!mobile && el.querySelector<HTMLElement>("[data-autofocus]")) || el;
     target.focus({ preventScroll: true });
-  }, [focused]);
+  }, [focused, mobile]);
 
   const begin = (e: React.PointerEvent, g: Gesture) => {
     try {
