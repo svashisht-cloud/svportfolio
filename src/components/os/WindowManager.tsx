@@ -12,6 +12,8 @@ import {
   prefersReducedMotion,
 } from "./appMeta";
 import { play } from "./sounds";
+import { log } from "./syslog";
+import { unlock } from "./achievements";
 
 interface State {
   wins: WinState[];
@@ -68,6 +70,8 @@ export interface WMActions {
   cleanUp(): void;
   /** Easter egg: every visible window falls to the bottom of the screen. */
   drop(): void;
+  /** True if a window with this id is open (minimized counts; closing doesn't). Doesn't re-render callers. */
+  isOpen(id: string): boolean;
 }
 
 const StateCtx = createContext<State>({ wins: [], zTop: 0 });
@@ -116,12 +120,17 @@ export function WindowManagerProvider({ children }: { children: React.ReactNode 
       focus,
       restore,
       activate,
+      isOpen(id) {
+        const w = find(id);
+        return !!w && w.phase !== "closing";
+      },
       launch(kind, payload) {
         const { id, title } = describe(kind, payload);
         if (find(id)) {
           activate(id);
           return;
         }
+        log("WindowServer", `open “${title}”`);
         const area = workArea();
         const mobile = isMobileNow();
         const [dw, dh] = defaultSize(kind, payload);
@@ -150,6 +159,7 @@ export function WindowManagerProvider({ children }: { children: React.ReactNode 
             phase: "opening",
             mx: 0,
             my: 0,
+            openedAt: Date.now(),
           },
         });
         later(420, () => dispatch({ type: "patch", id, patch: { phase: "open" } }));
@@ -161,6 +171,7 @@ export function WindowManagerProvider({ children }: { children: React.ReactNode 
       },
       close(id) {
         play("close");
+        log("WindowServer", `close “${find(id)?.title ?? id}”`);
         dispatch({ type: "patch", id, patch: { phase: "closing" } });
         later(180, () => dispatch({ type: "remove", id }));
       },
@@ -175,6 +186,7 @@ export function WindowManagerProvider({ children }: { children: React.ReactNode 
         const mx = tx - (w.x + w.w / 2);
         const my = ty - (w.y + w.h / 2);
         play("minimize");
+        log("WindowServer", `minimize “${w.title}”`);
         dispatch({ type: "patch", id, patch: { phase: "minimizing", mx, my } });
         later(420, () =>
           dispatch({ type: "patch", id, patch: { minimized: true, phase: "open" } }),
@@ -207,6 +219,7 @@ export function WindowManagerProvider({ children }: { children: React.ReactNode 
       },
       drop() {
         if (isMobileNow()) return;
+        unlock("gravity");
         const floor = window.innerHeight - DOCK_H - 34;
         for (const w of stateRef.current.wins) {
           if (w.minimized) continue;

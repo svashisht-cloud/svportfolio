@@ -10,6 +10,7 @@ const FAVORITES: { kind: AppKind; label: string }[] = [
   { kind: "about", label: "About Me" },
   { kind: "shubhgpt", label: "Ask ShubhGPT" },
   { kind: "projects", label: "Projects" },
+  { kind: "cases", label: "Case Files" },
   { kind: "experience", label: "Experience" },
   { kind: "education", label: "Education" },
   { kind: "resume", label: "Résumé" },

@@ -1,5 +1,7 @@
 "use client";
 import { createContext, useContext, useEffect, useMemo, useRef, useState } from "react";
+import { log } from "./syslog";
+import { Bug } from "./AchievementsApp";
 import { FaBackward, FaForward, FaMusic, FaPause, FaPlay, FaRandom, FaRedo, FaVolumeDown, FaVolumeUp } from "react-icons/fa";
 import { songs, type Song } from "@/app/songs";
 
@@ -178,8 +180,14 @@ export function MusicProvider({ children }: { children: React.ReactNode }) {
         <audio
           ref={audioRef}
           preload="none"
-          onPlay={() => setPlaying(true)}
-          onPause={() => setPlaying(false)}
+          onPlay={() => {
+            setPlaying(true);
+            log("Music", `play “${songs[indexRef.current]?.title ?? "?"}”`);
+          }}
+          onPause={() => {
+            setPlaying(false);
+            log("Music", "pause");
+          }}
           onTimeUpdate={(e) => setTime(e.currentTarget.currentTime)}
           onLoadedMetadata={(e) => setDuration(e.currentTarget.duration || 0)}
           onEnded={() => actions.ended()}
@@ -403,6 +411,7 @@ export function MusicApp() {
             </p>
           )}
         </div>
+        <Bug id="music" />
         <div className="os-music-modes">
           <button
             type="button"

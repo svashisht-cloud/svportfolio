@@ -5,22 +5,36 @@ import {
   FaBriefcase,
   FaCog,
   FaCommentDots,
+  FaChartLine,
+  FaStream,
+  FaCube,
+  FaTruck,
+  FaTrophy,
+  FaDesktop,
+  FaHistory,
   FaEnvelope,
+  FaFileAlt,
   FaFilePdf,
   FaFolder,
   FaFolderOpen,
   FaGithub,
   FaGraduationCap,
+  FaIdCard,
   FaImages,
   FaInfoCircle,
   FaLinkedin,
+  FaMicrochip,
   FaMusic,
+  FaPowerOff,
   FaQuestion,
+  FaSatelliteDish,
+  FaSyncAlt,
   FaTerminal,
   FaTrashAlt,
   FaUser,
   FaYoutube,
 } from "react-icons/fa";
+import { caseById } from "./cases/registry";
 import type { AppKind, AppPayload } from "./types";
 
 export const MENUBAR_H = 22;
@@ -74,6 +88,29 @@ export function describe(kind: AppKind, payload?: AppPayload): { id: string; tit
       return { id: `folder:${payload?.label}`, title: payload?.label ?? "untitled folder" };
     case "shubhgpt":
       return { id: "shubhgpt", title: "ShubhGPT" };
+    case "cases":
+      return { id: "cases", title: "Case Files" };
+    case "case":
+      return {
+        id: `case:${payload?.caseId}`,
+        title: caseById(payload?.caseId)?.title ?? "Case File",
+      };
+    case "sysinfo":
+      return { id: "sysinfo", title: "About This Developer" };
+    case "sysreport":
+      return { id: "sysreport", title: "System Report" };
+    case "update":
+      return { id: "update", title: "Software Update" };
+    case "virtualpc":
+      return { id: "virtualpc", title: "Virtual PC — Shubh's XP" };
+    case "classic":
+      return { id: "classic", title: "Classic — Personal Portfolio (Old)" };
+    case "achievements":
+      return { id: "achievements", title: "Trophies" };
+    case "console":
+      return { id: "console", title: "Console" };
+    case "activity":
+      return { id: "activity", title: "Activity Monitor" };
     case "info":
       return {
         id: `info:${payload?.label ?? "site"}`,
@@ -83,7 +120,7 @@ export function describe(kind: AppKind, payload?: AppPayload): { id: string; tit
 }
 
 const SIZES: Record<AppKind, [number, number]> = {
-  about: [540, 600],
+  about: [540, 640],
   finder: [320, 600],
   projects: [640, 460],
   project: [640, 620],
@@ -102,6 +139,16 @@ const SIZES: Record<AppKind, [number, number]> = {
   folder: [420, 300],
   info: [320, 400],
   shubhgpt: [460, 640],
+  cases: [520, 380],
+  case: [720, 720],
+  sysinfo: [360, 520],
+  sysreport: [740, 540],
+  update: [600, 560],
+  virtualpc: [960, 640],
+  classic: [900, 600],
+  achievements: [600, 580],
+  console: [680, 460],
+  activity: [640, 480],
 };
 
 export function defaultSize(kind: AppKind, payload?: AppPayload): [number, number] {
@@ -131,6 +178,22 @@ export function appName(kind: AppKind | undefined, payload?: AppPayload): string
       return "Music";
     case "shubhgpt":
       return "ShubhGPT";
+    case "case":
+      return "Case Files";
+    case "sysreport":
+      return "System Report";
+    case "update":
+      return "Software Update";
+    case "virtualpc":
+      return "Virtual PC";
+    case "classic":
+      return "Classic";
+    case "achievements":
+      return "Trophies";
+    case "console":
+      return "Console";
+    case "activity":
+      return "Activity Monitor";
     case "demo":
       return payload?.project?.name ?? "Demo";
     case "project":
@@ -152,6 +215,20 @@ interface IconSpec {
 }
 
 const ICONS: Record<string, IconSpec> = {
+  cases: { icon: FaFolder, c1: "#ffe3a3", c2: "#c98a1b" },
+  case: { icon: FaFileAlt, c1: "#b8f0e2", c2: "#1f7a68" },
+  "case:incident-replay": { icon: FaSatelliteDish, c1: "#4ac8b0", c2: "#15435c" },
+  "case:boot-order": { icon: FaPowerOff, c1: "#9be7a4", c2: "#1d6b3a" },
+  "case:point-cloud-diet": { icon: FaCube, c1: "#c7b8ff", c2: "#4b2f9e" },
+  "case:slanted-spots": { icon: FaTruck, c1: "#ffd2a1", c2: "#b4531a" },
+  sysinfo: { icon: FaIdCard, c1: "#d6e4f5", c2: "#4a6a94" },
+  sysreport: { icon: FaMicrochip, c1: "#c8f1d2", c2: "#2f7d4f" },
+  update: { icon: FaSyncAlt, c1: "#bfe3ff", c2: "#1d5fae" },
+  virtualpc: { icon: FaDesktop, c1: "#9fd0ff", c2: "#1f3f9e" },
+  classic: { icon: FaHistory, c1: "#e4e0d6", c2: "#7a6f5a" },
+  achievements: { icon: FaTrophy, c1: "#ffe79a", c2: "#c4861a" },
+  console: { icon: FaStream, c1: "#d7dbe0", c2: "#4a5260" },
+  activity: { icon: FaChartLine, c1: "#b8f0c2", c2: "#1f7a3a" },
   about: { icon: FaUser, c1: "#9fdcff", c2: "#1f6fd1" },
   finder: { icon: FaFolderOpen, c1: "#b5dcff", c2: "#2a6fd6" },
   projects: { icon: FaFolder, c1: "#a8d4ff", c2: "#2a7de1" },
@@ -193,7 +270,8 @@ export function AppIcon({
       </span>
     );
   }
-  const spec = ICONS[name ?? kind ?? "projects"] ?? ICONS.projects;
+  const key = name ?? (kind === "case" && payload?.caseId ? `case:${payload.caseId}` : kind) ?? "projects";
+  const spec = ICONS[key] ?? ICONS[kind ?? "projects"] ?? ICONS.projects;
   const Icon = spec.icon;
   return (
     <span

@@ -1,6 +1,7 @@
 "use client";
 import { useEffect, useRef, useState } from "react";
 import { experiences } from "@/app/portfolioData";
+import { unlock } from "./achievements";
 
 const MONTHS = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
 const SHORT = ["jan", "feb", "mar", "apr", "may", "jun", "jul", "aug", "sep", "oct", "nov", "dec"];
@@ -53,11 +54,12 @@ export default function Calendar({ onClose }: { onClose: () => void }) {
   const first = new Date(view.y, view.m, 1).getDay();
   const days = new Date(view.y, view.m + 1, 0).getDate();
   const notes = MILESTONES.get(`${view.y}-${view.m}`);
-  const shift = (d: number) =>
-    setView(({ y, m }) => {
-      const n = new Date(y, m + d, 1);
-      return { y: n.getFullYear(), m: n.getMonth() };
-    });
+  const shift = (d: number) => {
+    const n = new Date(view.y, view.m + d, 1);
+    setView({ y: n.getFullYear(), m: n.getMonth() });
+    // Back to the month of my first engineering job.
+    if (n.getFullYear() === 2022 && n.getMonth() === 5) unlock("time-travel");
+  };
 
   return (
     <div className="os-calendar" ref={ref} role="dialog" aria-label="Calendar">

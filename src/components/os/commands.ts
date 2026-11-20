@@ -2,6 +2,9 @@ import { experiences, projects } from "@/app/portfolioData";
 import { photos } from "@/app/photos";
 import { songs } from "@/app/songs";
 import { adventure } from "./eggs/adventure";
+import { CASES } from "./cases/registry";
+import { getSolvedCases } from "./cases/store";
+import { ACHIEVEMENTS, getUnlocked, unlock } from "./achievements";
 import { EMAIL, LINKS } from "./appMeta";
 import { emit, isDevMode } from "./eggs/bus";
 import type { AppKind, AppPayload } from "./types";
@@ -49,7 +52,7 @@ export interface CommandResult {
   matrix?: boolean;
 }
 
-interface Target {
+export interface Target {
   name: string;
   kind: AppKind;
   payload?: AppPayload;
@@ -57,9 +60,10 @@ interface Target {
   aliases?: string[];
 }
 
-const APPS: Target[] = [
+export const APPS: Target[] = [
   { name: "About", kind: "about", aliases: ["about me", "me"] },
   { name: "Projects", kind: "projects", aliases: ["finder"] },
+  { name: "Case Files", kind: "cases", aliases: ["cases", "puzzles", "games"] },
   { name: "Experience", kind: "experience", aliases: ["work", "career"] },
   { name: "Education", kind: "education", aliases: ["umass", "school"] },
   { name: "Resume", kind: "resume", aliases: ["résumé", "cv"] },
@@ -68,6 +72,15 @@ const APPS: Target[] = [
   { name: "Mail", kind: "contact", aliases: ["contact", "email"] },
   { name: "System Preferences", kind: "prefs", aliases: ["prefs", "settings", "wallpaper"] },
   { name: "ShubhGPT", kind: "shubhgpt", aliases: ["gpt", "chat", "ask", "ai"] },
+  { name: "About This Developer", kind: "sysinfo", aliases: ["about this mac", "sysinfo"] },
+  { name: "System Report", kind: "sysreport", aliases: ["skills report", "system profiler"] },
+  { name: "Software Update", kind: "update", aliases: ["update", "whats new", "what's new"] },
+  { name: "Terminal", kind: "terminal", aliases: ["shell", "zsh"] },
+  { name: "Virtual PC", kind: "virtualpc", aliases: ["windows", "xp", "boot camp"] },
+  { name: "Classic", kind: "classic", aliases: ["old portfolio", "classic environment"] },
+  { name: "Trophies", kind: "achievements", aliases: ["achievements", "bug hunt"] },
+  { name: "Console", kind: "console", aliases: ["logs", "log"] },
+  { name: "Activity Monitor", kind: "activity", aliases: ["top", "processes", "performance"] },
   { name: "Help", kind: "help" },
   { name: "Trash", kind: "trash" },
 ];
@@ -75,6 +88,9 @@ const APPS: Target[] = [
 /** Everything `open` and Tab completion know about. */
 export function targets(): Target[] {
   const list: Target[] = [...APPS];
+  for (const c of CASES) {
+    list.push({ name: c.title, kind: "case", payload: { caseId: c.id }, aliases: [c.id.replace(/-/g, " ")] });
+  }
   for (const p of projects) {
     list.push({ name: p.name, kind: "project", payload: { project: p } });
   }
@@ -109,12 +125,15 @@ export function findTarget(query: string, pool = targets()): Target | undefined 
   );
 }
 
-const COMMANDS: [string, string][] = [
+export const COMMANDS: [string, string][] = [
   ["help", "show this list"],
   ["whoami", "who is this guy"],
   ["ls [projects|experience|apps]", "list things"],
   ["open <name>", "open a project, role or app (fuzzy)"],
-  ["run <demo>", "launch a playable demo (snake, search)"],
+  ["run <demo>", "launch a demo or case file (snake, search, boot order…)"],
+  ["cases", "60-second puzzles from my real work"],
+  ["achievements", "trophies you've unlocked"],
+  ["top / console", "Activity Monitor / this visit's log"],
   ["skills", "tech used across projects"],
   ["cat resume", "résumé summary"],
   ["contact / socials", "ways to reach me"],
@@ -151,6 +170,10 @@ export const COMMAND_NAMES = [
   "np",
   "neofetch",
   "adventure",
+  "cases",
+  "achievements",
+  "top",
+  "console",
 ];
 
 function uptime(startedAt: number) {
@@ -277,6 +300,34 @@ function skills(): TermLine[] {
   }));
 }
 
+/** What `run` can start: the playable demos, then the case files. */
+function runnable(): Target[] {
+  return [
+    ...projects
+      .filter((p) => p.demoComponent)
+      .map((p) => ({ name: p.name, kind: "demo" as const, payload: { project: p } })),
+    ...CASES.map((c) => ({
+      name: c.title,
+      kind: "case" as const,
+      payload: { caseId: c.id },
+      aliases: [c.id.replace(/-/g, " ")],
+    })),
+  ];
+}
+
+function caseList(): TermLine[] {
+  const solved = getSolvedCases();
+  const width = Math.max(...CASES.map((c) => c.title.length)) + 2;
+  return [
+    { text: "Case Files: 60-second puzzles from my real work", tone: "title" },
+    ...CASES.map((c) => ({
+      text: `${solved.includes(c.id) ? "✓" : " "} ${c.title.padEnd(width)}${c.tagline}`,
+      tone: solved.includes(c.id) ? ("ok" as const) : undefined,
+    })),
+    { text: `Play one: run ${CASES[0]?.id.replace(/-/g, " ") ?? "<case>"}`, tone: "dim" },
+  ];
+}
+
 export function run(input: string, ctx: CommandContext): CommandResult {
   const raw = input.trim();
   if (!raw) return { lines: [] };
@@ -347,23 +398,38 @@ export function run(input: string, ctx: CommandContext): CommandResult {
       return { lines: [{ text: `Opening ${t.name}…`, tone: "ok" }] };
     }
     case "run": {
-      const demos = projects.filter((p) => p.demoComponent);
-      const pool = demos.map((p) => ({
-        name: p.name,
-        kind: "demo" as const,
-        payload: { project: p },
-      }));
+      const pool = runnable();
       const t = arg ? findTarget(arg, pool) : undefined;
       if (!t) {
         return {
           lines: [
-            { text: "usage: run <demo>", tone: "err" },
-            ...demos.map((p) => ({ text: `  ${p.name}`, tone: "dim" as const })),
+            { text: "usage: run <demo or case file>", tone: "err" },
+            ...pool.map((p) => ({ text: `  ${p.name}`, tone: "dim" as const })),
           ],
         };
       }
       ctx.launch(t.kind, t.payload);
       return { lines: [{ text: `Launching ${t.name}…`, tone: "ok" }] };
+    }
+    case "cases":
+      return { lines: caseList() };
+    case "top":
+      ctx.launch("activity");
+      return { lines: [{ text: "Opening Activity Monitor…", tone: "ok" }] };
+    case "console":
+      ctx.launch("console");
+      return { lines: [{ text: "Opening Console…", tone: "ok" }] };
+    case "achievements":
+    case "trophies": {
+      ctx.launch("achievements");
+      const got = ACHIEVEMENTS.filter((a) => getUnlocked().includes(a.id));
+      return {
+        lines: [
+          { text: `${got.length} of ${ACHIEVEMENTS.length} trophies unlocked`, tone: "title" },
+          ...got.map((a) => ({ text: `  ${a.icon}  ${a.title}`, tone: "ok" as const })),
+          { text: "Opening Trophies…", tone: "dim" },
+        ],
+      };
     }
     case "skills":
       return { lines: [{ text: "Tech used across projects:", tone: "title" }, ...skills()] };
@@ -398,11 +464,13 @@ export function run(input: string, ctx: CommandContext): CommandResult {
     case "rm": {
       if (/-\w*r\w*f|-\w*f\w*r/.test(arg) && /(^|\s)\/(\*)?(\s|$)/.test(`${arg} `)) {
         window.setTimeout(() => emit("panic"), 300);
+        unlock("panic");
         return { lines: [{ text: "Deleting everything…", tone: "err" }] };
       }
       return { lines: [{ text: "rm: permission denied (this is a portfolio)", tone: "err" }] };
     }
     case "matrix":
+      unlock("matrix");
       return { lines: [{ text: "Wake up, Neo…", tone: "ok" }], matrix: true };
     case "devmode":
       if (!isDevMode()) return { lines: [{ text: "zsh: command not found: devmode", tone: "err" }] };
@@ -424,6 +492,7 @@ export function run(input: string, ctx: CommandContext): CommandResult {
             label: "Password:",
             masked: true,
             handle: () => {
+              unlock("sudo");
               ctx.launch("contact");
               return {
                 lines: [
@@ -473,7 +542,7 @@ export function complete(input: string): string {
   if (!partial) return input;
   const pool =
     cmd === "run"
-      ? projects.filter((p) => p.demoComponent).map((p) => p.name)
+      ? runnable().map((t) => t.name)
       : cmd === "play"
         ? songs.map((s) => s.title)
       : cmd === "ls"

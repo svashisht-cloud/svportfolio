@@ -2,8 +2,12 @@
 import { useCallback, useEffect, useRef, useState, useSyncExternalStore } from "react";
 import "./os.css";
 import { AppBody } from "./apps";
+import { careerSteps } from "@/app/portfolioData";
 import { AppIcon, MOBILE_QUERY, isMobileNow, prefersReducedMotion } from "./appMeta";
-import { Boot, Login, hasBooted } from "./BootScreen";
+import { Boot, Login, hasBooted, markBooted } from "./BootScreen";
+import { LINK_PARAM, fromSlug, toSlug } from "./links";
+import { log } from "./syslog";
+import { ACHIEVEMENTS, unlock } from "./achievements";
 import ContextMenu, { type ContextEntry, type ContextMenuState } from "./ContextMenu";
 import Dock from "./Dock";
 import FinderSidebar from "./FinderSidebar";
@@ -45,6 +49,7 @@ interface DeskItem {
 const DESKTOP_ICONS: DeskItem[] = [
   { key: "about", kind: "about", label: "About Me.txt" },
   { key: "projects", kind: "projects", label: "Projects" },
+  { key: "cases", kind: "cases", label: "Case Files" },
   { key: "resume", kind: "resume", label: "Résumé.pdf" },
   { key: "photos", kind: "photos", label: "Photos" },
   { key: "shubhgpt", kind: "shubhgpt", label: "ShubhGPT" },
@@ -53,6 +58,13 @@ const DESKTOP_ICONS: DeskItem[] = [
 
 /** How long the screen-on effect lasts (matches os-wake-* in os.css). */
 const WAKE_MS = 650;
+
+/** Matches the title in layout.tsx. */
+const DEFAULT_TITLE = "Shubh Vashisht — Software Engineer";
+
+/** The Software Update nudge shows once per browser, this long after the desktop appears. */
+const UPDATE_SEEN_KEY = "sv-os-update-seen";
+const UPDATE_DELAY_MS = 12_000;
 
 interface AlertState {
   title: string;
@@ -252,6 +264,7 @@ function Workspace() {
 
   // Easter egg: ↑↑↓↓←→←→BA
   const onKonami = useCallback(() => {
+    unlock("konami");
     toast("Cheat code accepted. +30 lives.", "🎮");
     celebrate();
   }, [toast, celebrate]);
@@ -263,11 +276,43 @@ function Workspace() {
       setPanic(true);
     });
     const offConfetti = on("confetti", celebrate);
+    const offAchievement = on("achievement", (id) => {
+      const a = ACHIEVEMENTS.find((x) => x.id === id);
+      if (!a) return;
+      play("pop");
+      toast(`Achievement unlocked: ${a.title}`, "🏆", { onClick: () => wm.launch("achievements"), ms: 4500 });
+    });
     return () => {
       offPanic();
       offConfetti();
+      offAchievement();
     };
-  }, [celebrate]);
+  }, [celebrate, toast, wm]);
+
+  // One-time nudge: "Software Update: Shubh 4.0 is available".
+  useEffect(() => {
+    if (stage !== "desktop") return;
+    try {
+      if (window.localStorage.getItem(UPDATE_SEEN_KEY) === "1") return;
+    } catch {
+      return; // Without storage it would nag on every visit, so skip it.
+    }
+    const t = window.setTimeout(() => {
+      try {
+        window.localStorage.setItem(UPDATE_SEEN_KEY, "1");
+      } catch {
+        // Ignore: it just may show again next time.
+      }
+      const newest = careerSteps().at(-1);
+      if (!newest) return;
+      play("pop");
+      toast(`Software Update: Shubh ${newest.version} is available. Click to see what's new.`, "⬇️", {
+        ms: 9000,
+        onClick: () => wm.launch("update"),
+      });
+    }, UPDATE_DELAY_MS);
+    return () => window.clearTimeout(t);
+  }, [stage, toast, wm]);
 
   const fadeIn = useCallback(() => {
     setStage("waking");
@@ -285,11 +330,40 @@ function Workspace() {
 
   useEffect(() => {
     const t = window.setTimeout(() => {
-      if (hasBooted() || prefersReducedMotion()) wake();
+      // A deep link (?w=…) skips the boot screen and opens its window on top of About.
+      const linked = fromSlug(new URLSearchParams(window.location.search).get(LINK_PARAM));
+      if (linked) {
+        markBooted();
+        wake();
+        wm.launch(linked.kind, linked.payload);
+      } else if (hasBooted() || prefersReducedMotion()) wake();
       else setStage("boot");
     }, 0);
     return () => window.clearTimeout(t);
-  }, [wake]);
+  }, [wake, wm]);
+
+  // Console: how the page loaded (once).
+  useEffect(() => {
+    const nav = performance.getEntriesByType("navigation")[0] as PerformanceNavigationTiming | undefined;
+    if (nav) {
+      log("Kernel", `page loaded: DOM ready in ${Math.round(nav.domContentLoadedEventEnd)} ms, ${Math.round(nav.transferSize / 1024)} KB HTML`);
+    }
+    log("Kernel", `screen ${window.innerWidth}×${window.innerHeight}, ${navigator.language}`);
+  }, []);
+
+  // Keep the address bar pointing at the focused window, so it can be copied or bookmarked.
+  useEffect(() => {
+    if (stage !== "desktop") return;
+    const slug = focused ? toSlug(focused.kind, focused.payload) : null;
+    if (focused && !slug) return; // e.g. Trash: leave the last link alone
+    const next = slug ? `${window.location.pathname}?${LINK_PARAM}=${slug}` : window.location.pathname;
+    if (window.location.pathname + window.location.search !== next) {
+      window.history.replaceState(window.history.state, "", next);
+    }
+    // The tab title follows too (link previews use the same titles, from links.ts).
+    const linked = fromSlug(slug);
+    document.title = linked ? `${linked.title} · Shubh Vashisht` : DEFAULT_TITLE;
+  }, [stage, focused]);
 
   const leave = (next: Stage) => {
     setMenu(null);
@@ -333,6 +407,7 @@ function Workspace() {
   const onDropOnTrash = (item: DeskItem) => {
     play("alert");
     if (item.kind === "resume") {
+      unlock("keep-resume");
       setAlert({
         title: "Are you sure you want to move “Résumé.pdf” to the Trash?",
         message: "This candidate is great. You'll want to keep this one.",
