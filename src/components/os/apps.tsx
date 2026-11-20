@@ -17,7 +17,7 @@ import {
 import { experiences, isCurrentRole, projects, type Project } from "@/app/portfolioData";
 import { photos } from "@/app/photos";
 import { impact, profile } from "@/app/profile";
-import { AppIcon, EMAIL, LINKS, describe, prefersReducedMotion } from "./appMeta";
+import { AppIcon, EMAIL, LINKS, describe, prefersReducedMotion, useIsMobile } from "./appMeta";
 import { MusicApp, useMusic } from "./Music";
 import { WALLPAPERS, setPrefs, usePrefs, type ThemeMode } from "./prefs";
 import Terminal from "./Terminal";
@@ -36,6 +36,7 @@ import ActivityApp from "./ActivityApp";
 import ConsoleApp from "./ConsoleApp";
 import { ACHIEVEMENTS, noteRoleSeen, unlock, useUnlocked } from "./achievements";
 import RetroApp, { RETRO, type RetroKind } from "./RetroApp";
+import PhoneSettings from "./PhoneSettings";
 import { play } from "./sounds";
 import { useToast } from "./Toast";
 import { FinderList } from "./FinderSidebar";
@@ -286,8 +287,11 @@ function ProjectsFolderApp() {
 function ProjectApp({ project }: { project: Project }) {
   const wm = useWM();
   const copyLink = useCopyLink();
-  // Earlier projects that run in a window here (Virtual PC, Classic).
-  const runsHere = (Object.keys(RETRO) as RetroKind[]).find((k) => RETRO[k].project === project.name);
+  const mobile = useIsMobile();
+  // Earlier projects that run in a window here (Virtual PC, Classic). Virtual PC is desktop-only.
+  const runsHere = (Object.keys(RETRO) as RetroKind[]).find(
+    (k) => RETRO[k].project === project.name && !(mobile && RETRO[k].desktopOnly),
+  );
   const index = projects.findIndex((p) => p.name === project.name);
   const next = projects[(index + 1) % projects.length];
   return (
@@ -851,6 +855,8 @@ function PhotosApp() {
 
 function PrefsApp() {
   const prefs = usePrefs();
+  const mobile = useIsMobile();
+  if (mobile) return <PhoneSettings />;
   return (
     <div className="os-prefs">
       <section>

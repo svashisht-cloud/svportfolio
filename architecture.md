@@ -33,7 +33,12 @@ src/
       appMeta.tsx       — constants, links, describe()/defaultSize()/appName(), AppIcon
       FinderSidebar.tsx — pinned Finder sidebar + FinderList (Projects / Experience source list)
       MenuBar.tsx       — top menu bar with working menus and clock; logo menu: About This Developer (sysinfo), About This Site, Software Update…, System Preferences…, résumé, Restart/Shut Down/Log Out
-      Dock.tsx          — magnifying dock, running dots, bounce, minimized-window tiles
+      Dock.tsx          — magnifying dock, running dots, bounce, minimized-window tiles (desktop only)
+      launcher.ts       — shared app/link list (APPS, LINK_ITEMS, DEMO_ITEMS) for the dock and the phone home screen; set/takeLaunchOrigin() for the phone zoom
+      PhoneShell.tsx    — phones only: HomeScreen (two-page pager: Search | app grid, Search pill, dots, 4-app tray), PhoneSearch, HomeIndicator (swipe up / tap = home), goHome()
+      ControlCenter.tsx — phones only: top-right button + sheet (Dark Mode, Sounds, music player, Copy Link, Résumé, Settings); equalizer while music plays
+      PhoneSettings.tsx — phones only: the Settings app (the `prefs` window on phones)
+      searchIndex.tsx   — search index + scoring shared by Spotlight and the phone Search page (buildIndex, search, Highlight, runItem)
       types.ts          — AppKind, AppPayload, WinState
       deliver.ts        — deliver(wm, kind, event, message): open a window with a message, or send it over the bus if it's already open
       links.ts          — deep links: toSlug/fromSlug/linkFor (`?w=project/forte-resume`, `case/boot-order`, `resume`…); plain module, also used by page.tsx
@@ -84,13 +89,14 @@ Home (page.tsx)
          └─ ToastProvider          ← toasts (rendered fixed, outside .os-root)
          └─ Workspace              ← .os-root (+ .is-mobile, .is-party, data-appearance, data-theme); owns the stage
             ├─ wallpaper           ← data-wallpaper from prefs
-            ├─ MenuBar             ← menus, NowPlaying, clock, Spotlight
+            ├─ MenuBar             ← menus, NowPlaying, clock, Spotlight (phones: `mobile` → .os-phonebar status bar)
+            ├─ HomeScreen          ← phones only
             ├─ FinderSidebar       ← desktop only
             ├─ DesktopIcons        ← desktop only; full-screen layer with useSelection, right-click menu, drag-to-Trash
             ├─ Widgets             ← desktop only, when prefs.widgets
             ├─ Window × n
             │  └─ AppBody(kind, payload)
-            ├─ Dock
+            ├─ Dock / HomeIndicator ← Dock on desktop, HomeIndicator on phones
             ├─ ContextMenu         ← when open
             ├─ AlertDialog         ← Aqua alert (Résumé → Trash)
             ├─ Confetti / ScreenSaver / Panic
@@ -116,7 +122,7 @@ State: `{ wins: WinState[], zTop }`. `WinState` holds `id, kind, title, payload,
 - **Actions (`useWM()`):** `launch, activate, focus, close, minimize, restore, toggleMaximize, move, resize, isOpen` (`isOpen(id)` reads the state ref, so callers don't re-render). The actions object is stable; state is in a separate context (`useWMState()` → `{ wins, focused }`), so components that only launch windows don't re-render on every drag.
 - **Phases drive CSS animations:** `opening → open`, `closing → removed`, `minimizing → minimized`, `restoring → open`. Timers are set to 0 under `prefers-reduced-motion`.
 - **Minimize target:** the dock separator marked `data-dock-target="minimized"`; `mx/my` is the offset used by the `os-minimize` keyframes.
-- **Layout:** `workArea()` = right of the sidebar (desktop), between the menu bar (22px) and dock (84px; 64px on mobile). New windows cascade by 26px.
+- **Layout:** `workArea()` = right of the sidebar (desktop), between the menu bar (22px) and dock (84px); on phones between the status bar (`STATUSBAR_H` 36px) and home bar (`HOMEBAR_H` 22px), plus safe-area insets in CSS. New windows cascade by 26px.
 - **Focus:** the topmost non-minimized window. The menu bar shows its app name.
 
 ### Window kinds (`apps.tsx`)
@@ -199,7 +205,10 @@ On the wallpaper: New Folder, Change Desktop Background…, Clean Up (`wm.cleanU
 - Traffic lights: close, minimize, zoom (zoom hidden on mobile). Double-click title bar minimizes. Escape closes a focused window.
 - `role="dialog"`. When a window becomes frontmost (and focus isn't already inside it), it focuses its `[data-autofocus]` element (e.g. the Terminal prompt) or itself.
 - Variants by kind: `.os-window--dark` (experience, work, terminal, case), `.os-window--metal` (music, shubhgpt).
-- `WindowManager` also has `closeAll()` (Log Out / Restart) and `cleanUp()`; `launch()` briefly adds `html.os-busy` for the spinning-wheel cursor.
+- `WindowManager` also has `closeAll()` (Log Out / Restart), `cleanUp()` and `home()` (phones: minimizes every visible window so apps keep their state); `launch()` briefly adds `html.os-busy` for the spinning-wheel cursor.
+
+### ShubhGPT orb (`Orb` in `appMeta.tsx`)
+`AppIcon` draws `kind: "shubhgpt"` as `.os-icon--orb`: a glass sphere of layered radial gradients with a conic swirl, a faint "SV" and a ✦ sparkle. Its text is sized in `cqw` (the orb is a size container), so it scales anywhere. ShubhGPT.tsx uses `<Orb>` for the header and bot avatars; `thinking` (while typing) adds `.is-thinking`, a rotating swirl and a breathing glow.
 
 ### Dock (`Dock.tsx`)
 Projects, About, ShubhGPT, Experience, Case Files, one item per project with a `demoComponent`, Résumé, Photos, Music, Terminal, Mail | GitHub, LinkedIn, YouTube | minimized windows | Trash. Magnification uses item centres measured on pointer-enter (mouse only). Items bounce on first launch; a triangle marks open windows.
@@ -208,7 +217,24 @@ Projects, About, ShubhGPT, Experience, Case Files, one item per project with a `
 Search field (filters projects and work projects by name, tech stack, description), Favorites (incl. Case Files), Projects (★ = featured), Experience (role groups with disclosure triangles; each company's newest role expanded). The item for the focused window is highlighted.
 
 ### Mobile (< 768px)
-`.is-mobile`: no sidebar or desktop icons; every window is full screen between the menu bar and dock; no drag/resize/zoom; dock scrolls horizontally; File/View/Go/Help menus hidden; menu-bar icons are slimmer and a long app name gets an ellipsis (96px); Spotlight is a full-width sheet. On load, the Finder window opens under About. Checked at 375px (in a 375px iframe, since Chrome won't shrink below ~600px).
+Phones get an iOS-style shell instead of a squeezed desktop. `useIsMobile()` lives in `appMeta.tsx`.
+- **Top bar** (`MenuBar` with `mobile`, class `.os-phonebar`): the **time** top-left (no weekday) is the trigger for the system menu. The menu opens with an SV brand header (`Menu.header` → `.os-menu-brand`), then About This Developer / Site, Software Update, Trophies, System Preferences, résumé, Restart / Shut Down / Log Out ("Restart in Windows…" is desktop-only). `ControlCenter` is top-right; the middle stays clear for the notch / Dynamic Island. The phone menu is opaque frosted glass. Spotlight's menu-bar button isn't rendered on phones (the Search page replaces it; ⌘K still works).
+- **Control Center** (`ControlCenter.tsx`, `.os-cc`): a frosted sheet anchored top-right. Tiles: Dark Mode, Sounds, a music tile (song, prev/play/next; tapping the song opens Music), Copy Link (focused window), Résumé, Settings. While music plays, a green equalizer (`.os-cc-eq`) sits left of the button.
+- **Home screen** (`PhoneShell.tsx`, `.os-home`): a pager track (`.os-home-track`, width and translateX set inline, one 100% page each): **Search, then as many app pages as needed**. Each app page holds only whole rows: `rows` is measured from the first app page's height and the real cell height (ResizeObserver; `guessRows()` before the first measure), times 4 columns, so icons are never cut. It starts on the first app page.
+  - **Swipes:** the axis locks after 8px, and `touch-action: pan-y` keeps vertical scroll. A swipe counts by the raw finger distance (>25% width) or speed (>0.5 px/ms); the shown offset rubber-bands at the ends. Right goes to the previous page; left goes to the next. From Search, either direction returns to the first app page.
+  - **Under the pages:** the "Search" pill and the page dots (the first dot is a small magnifier), then the frosted tray (About, Projects, ShubhGPT, Mail). These float in `.os-home-bottom`, absolutely positioned at the bottom. App pages keep `--home-bottom-h` (160px, the measured ~154px plus breathing room) free as bottom padding. The Search page runs to the bottom edge with a 28px fade mask, so nothing ends abruptly when the tray hides.
+  - The grid holds every app, including the tray four; Virtual PC is excluded. On Search, the pill and tray step aside (`.is-search`).
+  - `goHome()` and the swipe-home finish dispatch `sv-home-page`, so home always lands on the first app page. The whole screen is hidden while an app is open (`.os-root.has-app`).
+- **Search page** (`PhoneSearch`, `.os-psearch-*`; not `.os-search`, which is the desktop sidebar field): a sticky field, focused when the page settles and cleared when leaving. An empty query shows Suggestions (recently opened windows, then About/Projects/ShubhGPT/Résumé), Ask ShubhGPT chips (`SUGGESTIONS` from ShubhGPT.tsx, via `deliver`), Featured projects and Case files. Typing shows `search()` groups from `searchIndex.tsx`; Enter runs the first result.
+- **Settings app** (`PhoneSettings.tsx`, `.os-set-*`): on phones the `prefs` window renders this, titled "Settings". It's an iOS inset grouped list with a profile card (→ sysinfo); Display & Brightness (Light/Dark previews, Automatic switch, Accent); Wallpaper (2-column swatches); a Sounds switch; General (About This Site, Help, Console, Activity Monitor, Classic); Software Update; Trophies; résumé view/download; Mail and the social links; Restart / Shut Down / Log Out. Sub-pages are local state with a "‹ Settings" back button. Power rows `emit("power", "restart" | "shutdown" | "logout")`, which `Workspace` handles. The CSS-only `.os-switch` is the iOS toggle.
+- **Apps**: full screen between the status bar and home bar. The title bar becomes a nav bar (`.os-navbar`) with `‹ <window below>` (closes this window) or `‹ Home` (`wm.home()`). A 14px left-edge strip (`.os-edge-swipe`) does the same on a right swipe. The back target is computed in `Workspace` from the z-order of visible windows.
+- **Motion**: tapping a home icon records its centre (`setLaunchOrigin`). `launch()`/`restore()` store it as `win.origin`, and the window zooms out of and back into that icon (`os-app-zoom-in/out`, `.has-origin`). Windows opened from inside an app slide in from the right (`os-push-in`) and slide out when closed.
+- **Home bar** (`.os-homebar`, `HomeIndicator`): dragging it up pulls the front app with the finger (inline transform: it rises, shrinks and rounds off). Windows under it are hidden, and the home screen fades and settles in behind (`.is-swiping-home`, `--home-p`). On release past 110px, or a fast flick, the app flies into its icon (Web Animations, using `data-origin` on the window) and then `wm.home({ instant: true })` runs. Otherwise it springs back. A tap, `‹ Home` and the edge swipe use `goHome()`: the normal shrink plus the icons easing in (`.is-homing`). Only gesture-touched inline styles are reset afterwards, because React owns `display` and `transform-origin`.
+- **Virtual PC (Windows XP Clone) is desktop-only** (`RETRO.virtualpc.desktopOnly`). On phones it's missing from the home grid, the SV menu ("Restart in Windows…"), Spotlight and the project's "Run it here" button. If it's opened anyway (Terminal, deep link), `RetroApp` shows a "needs a bigger screen" card with an Open in new tab link.
+- **No screen saver on phones** (`ScreenSaver disabled` when mobile). The shut-down screen (`.os-shutdown`, z 31000) sits above Boot/Login (30000), so Shut Down works from the login screen.
+- **Boot**: phones land on the home screen (About isn't opened). A deep link opens its app over home.
+- `--menubar-h`/`--dock-h` are pointed at the status/home bar heights, so Spotlight's full-width sheet still fits. Toasts sit above the home bar (via a width media query, since they render outside `.os-root`). `layout.tsx` exports `viewport` with `viewportFit: "cover"`.
+- Checked at 375px (in a 375px iframe, since Chrome won't shrink below ~600px).
 
 ### ShubhGPT (`shubhgpt/`, `src/app/knowledge.ts`)
 - **Scripted fallback:** `answer(question)` scores every `KNOWLEDGE` entry by whole-word keyword hits and replies with the best one (two if tied); greetings/thanks get small talk; no match gets `FALLBACK`. Answers are first person and never invented: every entry is generated from `portfolioData.tsx` or facts already shown on the site.
@@ -345,7 +371,7 @@ The current role is the one whose `dateRange` contains "Present" (`isCurrentRole
 | `music/` | Songs for the Music window (listed in `src/app/songs.ts`): trimski.mp3, hotline-bling.mp3 (128 kbps) |
 | `images/forte2.png` | Forte Resume project icon + window screenshot |
 | `images/MockLoop1.png` | AI Interviewer project icon + window screenshot |
-| `images/windowIcon.png` | Windows XP Clone project icon + window screenshot |
+| `images/xp-clone.png` | Windows XP Clone project icon: an original XP-era scene (sky, hill, window, taskbar), 512×512. `images/windowIcon.png` (a white outline that looked blank) is no longer used |
 | `images/search1.png` | Search Algorithm Viz project icon + window screenshot |
 | `images/snake1.png` | Snake Game project icon + window screenshot |
 | `images/npm1.png` | Moral-Fibre project icon + window screenshot |

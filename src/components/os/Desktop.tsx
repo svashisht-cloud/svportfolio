@@ -1,9 +1,9 @@
 "use client";
-import { useCallback, useEffect, useRef, useState, useSyncExternalStore } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import "./os.css";
 import { AppBody } from "./apps";
 import { careerSteps } from "@/app/portfolioData";
-import { AppIcon, MOBILE_QUERY, isMobileNow, prefersReducedMotion } from "./appMeta";
+import { AppIcon, MOBILE_QUERY, prefersReducedMotion, useIsMobile } from "./appMeta";
 import { Boot, Login, hasBooted, markBooted } from "./BootScreen";
 import { LINK_PARAM, fromSlug, toSlug } from "./links";
 import { log } from "./syslog";
@@ -12,6 +12,7 @@ import ContextMenu, { type ContextEntry, type ContextMenuState } from "./Context
 import Dock from "./Dock";
 import FinderSidebar from "./FinderSidebar";
 import MenuBar from "./MenuBar";
+import { HomeIndicator, HomeScreen } from "./PhoneShell";
 import Confetti from "./eggs/Confetti";
 import Panic from "./eggs/Panic";
 import ScreenSaver from "./eggs/ScreenSaver";
@@ -26,18 +27,6 @@ import { useSelection } from "./useSelection";
 import Window from "./Window";
 import { WindowManagerProvider, useWM, useWMState } from "./WindowManager";
 import type { AppKind, AppPayload } from "./types";
-
-function useIsMobile() {
-  return useSyncExternalStore(
-    (cb) => {
-      const mq = window.matchMedia(MOBILE_QUERY);
-      mq.addEventListener("change", cb);
-      return () => mq.removeEventListener("change", cb);
-    },
-    () => window.matchMedia(MOBILE_QUERY).matches,
-    () => false,
-  );
-}
 
 interface DeskItem {
   key: string;
@@ -319,24 +308,28 @@ function Workspace() {
     window.setTimeout(() => setStage("desktop"), prefersReducedMotion() ? 0 : WAKE_MS);
   }, []);
 
-  const wake = useCallback(() => {
-    play("startup");
-    setStage("waking");
-    // On phones, the Finder list sits under About.
-    if (isMobileNow()) wm.launch("finder");
-    wm.launch("about");
-    window.setTimeout(() => setStage("desktop"), prefersReducedMotion() ? 0 : WAKE_MS);
-  }, [wm]);
+  /** Desktop opens About; phones land on the home screen. */
+  const wake = useCallback(
+    (openAbout = true) => {
+      play("startup");
+      setStage("waking");
+      if (openAbout) wm.launch("about");
+      window.setTimeout(() => setStage("desktop"), prefersReducedMotion() ? 0 : WAKE_MS);
+    },
+    [wm],
+  );
+  const wakeHere = useCallback(() => wake(!window.matchMedia(MOBILE_QUERY).matches), [wake]);
 
   useEffect(() => {
     const t = window.setTimeout(() => {
       // A deep link (?w=…) skips the boot screen and opens its window on top of About.
       const linked = fromSlug(new URLSearchParams(window.location.search).get(LINK_PARAM));
+      const phone = window.matchMedia(MOBILE_QUERY).matches;
       if (linked) {
         markBooted();
-        wake();
+        wake(!phone);
         wm.launch(linked.kind, linked.payload);
-      } else if (hasBooted() || prefersReducedMotion()) wake();
+      } else if (hasBooted() || prefersReducedMotion()) wake(!phone);
       else setStage("boot");
     }, 0);
     return () => window.clearTimeout(t);
@@ -371,6 +364,20 @@ function Workspace() {
     window.setTimeout(() => setStage(next), prefersReducedMotion() ? 0 : 220);
   };
 
+  // Phone Settings' power rows (Restart / Shut Down / Log Out) arrive over the bus.
+  const leaveRef = useRef(leave);
+  useEffect(() => {
+    leaveRef.current = leave;
+  });
+  useEffect(
+    () =>
+      on("power", (what) => {
+        if (what === "shutdown") setShutDown(true);
+        else leaveRef.current(what === "logout" ? "loggedOut" : "boot");
+      }),
+    [],
+  );
+
   const newFolder = () => {
     setFolders((f) => {
       const used = new Set(f);
@@ -399,6 +406,15 @@ function Workspace() {
       payload: { label: name },
     })),
   ];
+
+  // Phones: each open window's "‹ Back" goes to the window stacked under it.
+  const backTitles = new Map<string, string>();
+  wins
+    .filter((w) => !w.minimized && w.phase !== "closing" && w.phase !== "minimizing")
+    .sort((a, b) => a.z - b.z)
+    .forEach((w, i, stack) => {
+      if (i > 0) backTitles.set(w.id, stack[i - 1].title);
+    });
 
   const closeMenu = useCallback(() => setMenu(null), []);
   const closeAlert = useCallback(() => setAlert(null), []);
@@ -433,6 +449,7 @@ function Workspace() {
       className={[
         "os-root",
         mobile ? "is-mobile" : "",
+        mobile && focused ? "has-app" : "",
         stage === "waking" ? "is-waking" : "",
         party ? "is-party" : "",
       ].join(" ")}
@@ -441,10 +458,12 @@ function Workspace() {
     >
       <div className="os-wallpaper" data-wallpaper={prefs.wallpaper} aria-hidden />
       <MenuBar
+        mobile={mobile}
         onShutDown={() => setShutDown(true)}
         onRestart={() => leave("boot")}
         onLogOut={() => leave("loggedOut")}
       />
+      {mobile && <HomeScreen />}
       {!mobile && <FinderSidebar />}
       {!mobile && (
         <DesktopIcons
@@ -457,16 +476,23 @@ function Workspace() {
       {!mobile && prefs.widgets && (stage === "desktop" || stage === "waking") && <Widgets />}
       <main className="os-windows" aria-label="Open windows">
         {wins.map((w) => (
-          <Window key={w.id} win={w} focused={focused?.id === w.id} mobile={mobile}>
+          <Window
+            key={w.id}
+            win={w}
+            focused={focused?.id === w.id}
+            mobile={mobile}
+            backTitle={mobile ? backTitles.get(w.id) : undefined}
+          >
             <AppBody kind={w.kind} payload={w.payload} />
           </Window>
         ))}
       </main>
-      <Dock mobile={mobile} />
+      {mobile ? <HomeIndicator appOpen={!!focused} /> : <Dock />}
       {menu && <ContextMenu menu={menu} onClose={closeMenu} />}
       {alert && <AlertDialog alert={alert} onClose={closeAlert} />}
       {confetti && <Confetti onDone={endConfetti} />}
-      <ScreenSaver disabled={stage !== "desktop" || music.playing || panic} />
+      {/* No screen saver on phones: they have their own screen timeout. */}
+      <ScreenSaver disabled={mobile || stage !== "desktop" || music.playing || panic} />
       {panic && (
         <Panic
           onDismiss={() => {
@@ -478,8 +504,8 @@ function Workspace() {
 
       {stage === "pending" && <div className="os-blackout" aria-hidden />}
       {stage === "waking" && <div className="os-wake" aria-hidden />}
-      {stage === "boot" && <Boot onDone={wake} />}
-      {stage === "loggedOut" && <Login onLogin={wake} onShutDown={() => setShutDown(true)} />}
+      {stage === "boot" && <Boot onDone={wakeHere} />}
+      {stage === "loggedOut" && <Login onLogin={wakeHere} onShutDown={() => setShutDown(true)} />}
       {shutDown && (
         <div className="os-shutdown" role="dialog" aria-label="Shut down">
           <p>Thanks for stopping by.</p>

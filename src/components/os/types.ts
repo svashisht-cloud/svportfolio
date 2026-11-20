@@ -76,4 +76,6 @@ export interface WinState extends Rect {
   tilt?: number;
   /** When it was opened (ms since the epoch), for Activity Monitor. */
   openedAt?: number;
+  /** Phones: the home-screen icon (viewport px) the window zooms out of and back into. */
+  origin?: { x: number; y: number };
 }

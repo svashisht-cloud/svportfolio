@@ -2,6 +2,7 @@
 import { useEffect, useRef, useState } from "react";
 import type { WinState } from "./types";
 import { useWM } from "./WindowManager";
+import { goHome } from "./PhoneShell";
 import { MENUBAR_H, accentFor } from "./appMeta";
 import { useShake } from "./eggs/useShake";
 import { play } from "./sounds";
@@ -18,11 +19,14 @@ export default function Window({
   win,
   focused,
   mobile,
+  backTitle,
   children,
 }: {
   win: WinState;
   focused: boolean;
   mobile: boolean;
+  /** Phones: title of the window underneath, shown as "‹ Back". None means the home screen. */
+  backTitle?: string;
   children: React.ReactNode;
 }) {
   const wm = useWM();
@@ -97,6 +101,25 @@ export default function Window({
     });
   };
 
+  /** Phones: back closes this window, or goes home if it's the only one open. */
+  const back = () => (backTitle ? wm.close(win.id) : goHome(wm));
+
+  // Phones: swipe right from the left edge to go back.
+  const edge = useRef<{ x: number; y: number } | null>(null);
+  const onEdgeDown = (e: React.PointerEvent) => {
+    edge.current = { x: e.clientX, y: e.clientY };
+    try {
+      e.currentTarget.setPointerCapture(e.pointerId);
+    } catch {
+      // Ignore: the swipe still ends on pointerup.
+    }
+  };
+  const onEdgeUp = (e: React.PointerEvent) => {
+    const s = edge.current;
+    edge.current = null;
+    if (s && e.clientX - s.x > 70 && Math.abs(e.clientY - s.y) < 80) back();
+  };
+
   const accent =
     win.kind === "project" || win.kind === "demo" ? accentFor(win.payload) : undefined;
 
@@ -109,6 +132,9 @@ export default function Window({
     display: win.minimized ? "none" : undefined,
     "--mx": `${win.mx}px`,
     "--my": `${win.my}px`,
+    ...(mobile && win.origin
+      ? { transformOrigin: `${win.origin.x}px calc(${win.origin.y}px - var(--statusbar-h))` }
+      : {}),
     ...(win.tilt !== undefined ? { "--tilt": `${win.tilt}deg` } : {}),
     ...(accent ? { "--accent": accent } : {}),
   } as React.CSSProperties;
@@ -120,6 +146,7 @@ export default function Window({
       aria-label={win.title}
       tabIndex={-1}
       data-win-id={win.id}
+      data-origin={mobile && win.origin ? `${win.origin.x},${win.origin.y}` : undefined}
       className={[
         "os-window",
         `phase-${win.phase}`,
@@ -129,6 +156,7 @@ export default function Window({
           : "",
         win.kind === "music" || win.kind === "shubhgpt" ? "os-window--metal" : "",
         accent ? "os-window--accent" : "",
+        mobile && win.origin ? "has-origin" : "",
         win.tilt !== undefined ? "is-fallen" : "",
         moving ? "is-moving" : "",
       ].join(" ")}
@@ -140,38 +168,51 @@ export default function Window({
         if (e.key === "Escape" && e.target === e.currentTarget) wm.close(win.id);
       }}
     >
-      <header
-        className="os-titlebar"
-        onPointerDown={onTitleDown}
-        onPointerMove={onPointerMove}
-        onPointerUp={end}
-        onPointerCancel={end}
-        onDoubleClick={(e) => {
-          if (!(e.target as HTMLElement).closest("button")) wm.minimize(win.id);
-        }}
-      >
-        <div className="os-lights">
+      {mobile ? (
+        <header className="os-titlebar os-navbar">
           <button
             type="button"
-            className="os-light os-light--close"
-            aria-label={`Close ${win.title}`}
-            onClick={() => wm.close(win.id)}
+            className="os-nav-back"
+            aria-label={backTitle ? `Back to ${backTitle}` : "Home"}
+            onClick={back}
           >
-            <svg viewBox="0 0 10 10" aria-hidden>
-              <path d="M2.5 2.5l5 5M7.5 2.5l-5 5" />
-            </svg>
+            <span aria-hidden>‹</span>
+            <span className="os-nav-back-label">{backTitle ?? "Home"}</span>
           </button>
-          <button
-            type="button"
-            className="os-light os-light--min"
-            aria-label={`Minimize ${win.title}`}
-            onClick={() => wm.minimize(win.id)}
-          >
-            <svg viewBox="0 0 10 10" aria-hidden>
-              <path d="M2 5h6" />
-            </svg>
-          </button>
-          {!mobile && (
+          <h2 className="os-title">{win.kind === "prefs" ? "Settings" : win.title}</h2>
+        </header>
+      ) : (
+        <header
+          className="os-titlebar"
+          onPointerDown={onTitleDown}
+          onPointerMove={onPointerMove}
+          onPointerUp={end}
+          onPointerCancel={end}
+          onDoubleClick={(e) => {
+            if (!(e.target as HTMLElement).closest("button")) wm.minimize(win.id);
+          }}
+        >
+          <div className="os-lights">
+            <button
+              type="button"
+              className="os-light os-light--close"
+              aria-label={`Close ${win.title}`}
+              onClick={() => wm.close(win.id)}
+            >
+              <svg viewBox="0 0 10 10" aria-hidden>
+                <path d="M2.5 2.5l5 5M7.5 2.5l-5 5" />
+              </svg>
+            </button>
+            <button
+              type="button"
+              className="os-light os-light--min"
+              aria-label={`Minimize ${win.title}`}
+              onClick={() => wm.minimize(win.id)}
+            >
+              <svg viewBox="0 0 10 10" aria-hidden>
+                <path d="M2 5h6" />
+              </svg>
+            </button>
             <button
               type="button"
               className="os-light os-light--max"
@@ -182,11 +223,20 @@ export default function Window({
                 <path d="M5 2v6M2 5h6" />
               </svg>
             </button>
-          )}
-        </div>
-        <h2 className="os-title">{win.title}</h2>
-      </header>
+          </div>
+          <h2 className="os-title">{win.title}</h2>
+        </header>
+      )}
       <div className="os-window-body">{children}</div>
+      {mobile && (
+        <div
+          className="os-edge-swipe"
+          aria-hidden
+          onPointerDown={onEdgeDown}
+          onPointerUp={onEdgeUp}
+          onPointerCancel={() => (edge.current = null)}
+        />
+      )}
       {!mobile && (
         <div
           className="os-resize"
