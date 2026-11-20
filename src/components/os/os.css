@@ -6692,3 +6692,17 @@ button.os-set-row:active {
 .os-set-wall[aria-checked="true"] .os-wall-swatch {
   box-shadow: 0 0 0 3px #2f7cf6;
 }
+
+/* Phones: no surprise zooming.
+   - iPhone Safari zooms into any focused text box under 16px and stays zoomed (e.g. when you
+     come back from a link opened in another tab), so text boxes are at least 16px on phones.
+   - `manipulation` turns off double-tap-to-zoom (taps also fire without delay); pinch zoom
+     still works for anyone who needs it. */
+.os-root.is-mobile {
+  touch-action: manipulation;
+}
+.is-mobile input:not([type="checkbox"]):not([type="radio"]):not([type="range"]),
+.is-mobile textarea,
+.is-mobile select {
+  font-size: 16px;
+}
