@@ -123,7 +123,7 @@ export const projects: Project[] = [
   },
   {
     name: "Windows XP Clone",
-    image: "/images/windowIcon.png",
+    image: "/images/xp-clone.png",
     description:
       "Full Windows-like environment built entirely in React — draggable windows, a custom music player, video player, photo viewer, and resume viewer. Every component and all CSS written from scratch.",
     techStack: ["React", "CSS"],

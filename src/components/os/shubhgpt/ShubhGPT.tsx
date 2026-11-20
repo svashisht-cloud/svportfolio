@@ -1,9 +1,8 @@
 "use client";
 import { useEffect, useRef, useState } from "react";
-import Image from "next/image";
 import { FaEnvelope, FaPaperPlane, FaRedo, FaUser } from "react-icons/fa";
 import { GREETING } from "@/app/knowledge";
-import { prefersReducedMotion } from "../appMeta";
+import { Orb, prefersReducedMotion } from "../appMeta";
 import { play } from "../sounds";
 import { deliver } from "../deliver";
 import { on } from "../eggs/bus";
@@ -19,7 +18,7 @@ interface Message {
   shown: number;
 }
 
-const SUGGESTIONS = [
+export const SUGGESTIONS = [
   "What are you working on?",
   "What are your strongest skills?",
   "Tell me about your robotics work",
@@ -157,7 +156,7 @@ export default function ShubhGPT({ initialQuestion }: { initialQuestion?: string
   return (
     <div className="os-chat">
       <header className="os-chat-head">
-        <Image src="/images/avatar.jpg" alt="" width={36} height={36} className="os-chat-avatar" />
+        <Orb thinking={typing} className="os-chat-avatar os-chat-orb" />
         <div>
           <p className="os-chat-name">ShubhGPT</p>
           <p className="os-chat-status">
@@ -170,7 +169,7 @@ export default function ShubhGPT({ initialQuestion }: { initialQuestion?: string
         {messages.map((m) => (
           <div key={m.id} className={`os-chat-row os-chat-row--${m.from}`}>
             {m.from === "bot" ? (
-              <Image src="/images/avatar.jpg" alt="" width={30} height={30} className="os-chat-avatar os-chat-avatar--small" />
+              <Orb className="os-chat-avatar os-chat-avatar--small os-chat-orb" />
             ) : (
               <span className="os-chat-avatar os-chat-avatar--small os-chat-avatar--you" aria-hidden>
                 <FaUser />
@@ -184,7 +183,7 @@ export default function ShubhGPT({ initialQuestion }: { initialQuestion?: string
         ))}
         {typing && (
           <div className="os-chat-row os-chat-row--bot">
-            <Image src="/images/avatar.jpg" alt="" width={30} height={30} className="os-chat-avatar os-chat-avatar--small" />
+            <Orb thinking className="os-chat-avatar os-chat-avatar--small os-chat-orb" />
             <p className="os-bubble os-bubble--typing" aria-label="ShubhGPT is typing">
               <span />
               <span />

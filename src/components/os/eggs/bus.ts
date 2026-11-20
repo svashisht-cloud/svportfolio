@@ -14,7 +14,9 @@ export type BusEvent =
   | "terminal"
   | "sysreport"
   | "compose"
-  | "achievement";
+  | "achievement"
+  /** Phone Settings' power rows: "restart" | "shutdown" | "logout" (handled by the desktop). */
+  | "power";
 
 type Handler = (detail?: string) => void;
 

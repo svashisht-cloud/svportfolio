@@ -3,9 +3,10 @@ import { createContext, useContext, useLayoutEffect, useMemo, useReducer, useRef
 import type { AppKind, AppPayload, Rect, WinState } from "./types";
 import {
   DOCK_H,
-  DOCK_H_MOBILE,
+  HOMEBAR_H,
   MENUBAR_H,
   SIDEBAR_W,
+  STATUSBAR_H,
   defaultSize,
   describe,
   isMobileNow,
@@ -14,6 +15,7 @@ import {
 import { play } from "./sounds";
 import { log } from "./syslog";
 import { unlock } from "./achievements";
+import { takeLaunchOrigin } from "./launcher";
 
 interface State {
   wins: WinState[];
@@ -66,6 +68,11 @@ export interface WMActions {
   resize(id: string, w: number, h: number): void;
   /** Close every window (used by Log Out and Restart). */
   closeAll(): void;
+  /**
+   * Phones: back to the home screen. Windows are minimized, not closed, so they keep their state.
+   * `instant` skips the shrink animation (the swipe gesture has already animated them away).
+   */
+  home(opts?: { instant?: boolean }): void;
   /** Re-cascade all visible windows into tidy positions (or back to where they fell from). */
   cleanUp(): void;
   /** Easter egg: every visible window falls to the bottom of the screen. */
@@ -81,9 +88,9 @@ const ActionsCtx = createContext<WMActions | null>(null);
 export function workArea(): Rect {
   const mobile = isMobileNow();
   const left = mobile ? 0 : SIDEBAR_W + 24;
-  const top = MENUBAR_H;
+  const top = mobile ? STATUSBAR_H : MENUBAR_H;
   const w = window.innerWidth - left;
-  const h = window.innerHeight - top - (mobile ? DOCK_H_MOBILE : DOCK_H);
+  const h = window.innerHeight - top - (mobile ? HOMEBAR_H : DOCK_H);
   return { x: left, y: top, w, h };
 }
 
@@ -104,7 +111,12 @@ export function WindowManagerProvider({ children }: { children: React.ReactNode 
     const focus = (id: string) => dispatch({ type: "focus", id });
 
     const restore = (id: string) => {
-      dispatch({ type: "patch", id, patch: { minimized: false, phase: "restoring" } });
+      const origin = takeLaunchOrigin();
+      dispatch({
+        type: "patch",
+        id,
+        patch: { minimized: false, phase: "restoring", ...(origin ? { origin } : {}) },
+      });
       focus(id);
       later(360, () => dispatch({ type: "patch", id, patch: { phase: "open" } }));
     };
@@ -128,8 +140,10 @@ export function WindowManagerProvider({ children }: { children: React.ReactNode 
         const { id, title } = describe(kind, payload);
         if (find(id)) {
           activate(id);
+          takeLaunchOrigin(); // an already-visible window doesn't zoom
           return;
         }
+        const origin = takeLaunchOrigin();
         log("WindowServer", `open “${title}”`);
         const area = workArea();
         const mobile = isMobileNow();
@@ -160,6 +174,7 @@ export function WindowManagerProvider({ children }: { children: React.ReactNode 
             mx: 0,
             my: 0,
             openedAt: Date.now(),
+            origin,
           },
         });
         later(420, () => dispatch({ type: "patch", id, patch: { phase: "open" } }));
@@ -242,6 +257,26 @@ export function WindowManagerProvider({ children }: { children: React.ReactNode 
         for (const w of stateRef.current.wins) {
           dispatch({ type: "patch", id: w.id, patch: { phase: "closing" } });
           later(180, () => dispatch({ type: "remove", id: w.id }));
+        }
+      },
+      home(opts) {
+        const open = stateRef.current.wins.filter(
+          (w) => !w.minimized && w.phase !== "closing" && w.phase !== "minimizing",
+        );
+        if (!open.length) return;
+        play("minimize");
+        log("WindowServer", "home");
+        if (opts?.instant) {
+          for (const w of open) {
+            dispatch({ type: "patch", id: w.id, patch: { minimized: true, phase: "open" } });
+          }
+          return;
+        }
+        for (const w of open) {
+          dispatch({ type: "patch", id: w.id, patch: { phase: "minimizing" } });
+          later(320, () =>
+            dispatch({ type: "patch", id: w.id, patch: { minimized: true, phase: "open" } }),
+          );
         }
       },
       cleanUp() {

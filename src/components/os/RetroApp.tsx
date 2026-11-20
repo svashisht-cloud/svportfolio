@@ -1,7 +1,7 @@
 "use client";
 import { useEffect, useState } from "react";
 import { FaExternalLinkAlt } from "react-icons/fa";
-import { prefersReducedMotion } from "./appMeta";
+import { prefersReducedMotion, useIsMobile } from "./appMeta";
 
 /**
  * Virtual PC and Classic: two of Shubh's earlier projects running in a window on this desktop.
@@ -13,12 +13,15 @@ export const RETRO = {
     project: "Windows XP Clone",
     booting: "Starting Shubh's XP…",
     title: "Windows XP Clone, running in Virtual PC",
+    /** A whole desktop doesn't fit a phone, so phones get a link instead. */
+    desktopOnly: true,
   },
   classic: {
     url: "https://og-portfolio-svashisht.vercel.app/",
     project: "Personal Portfolio (Old)",
     booting: "Classic environment starting…",
     title: "My old portfolio, running in Classic",
+    desktopOnly: false,
   },
 } as const;
 
@@ -29,10 +32,25 @@ const BOOT_MS = 1600;
 export default function RetroApp({ kind }: { kind: RetroKind }) {
   const app = RETRO[kind];
   const [booted, setBooted] = useState(false);
+  const mobile = useIsMobile();
   useEffect(() => {
     const t = window.setTimeout(() => setBooted(true), prefersReducedMotion() ? 0 : BOOT_MS);
     return () => window.clearTimeout(t);
   }, []);
+  if (mobile && app.desktopOnly) {
+    return (
+      <div className="os-center">
+        <p>
+          <strong>{app.project}</strong> is a full desktop, and it needs a bigger screen than a
+          phone.
+        </p>
+        <p className="os-meta">Open it on a laptop, or try it in a new tab.</p>
+        <a href={app.url} target="_blank" rel="noopener noreferrer" className="aqua-btn">
+          <FaExternalLinkAlt aria-hidden /> Open in new tab
+        </a>
+      </div>
+    );
+  }
   return (
     <div className={`os-retro os-retro--${kind}`}>
       <div className="os-toolbar">

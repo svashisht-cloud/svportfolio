@@ -1,4 +1,4 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 
 import "./globals.css";
@@ -23,6 +23,14 @@ export const metadata: Metadata = {
       "Full-stack and AI engineer building products at the intersection of robotics, language models, and developer tools.",
     type: "website",
   },
+};
+
+/** viewport-fit=cover lets the phone shell use the full screen and pad itself with safe-area insets. */
+export const viewport: Viewport = {
+  width: "device-width",
+  initialScale: 1,
+  viewportFit: "cover",
+  themeColor: "#101218",
 };
 
 export default function RootLayout({

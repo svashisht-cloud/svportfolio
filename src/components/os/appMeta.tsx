@@ -1,5 +1,6 @@
 "use client";
 import Image from "next/image";
+import { useSyncExternalStore } from "react";
 import type { IconType } from "react-icons";
 import {
   FaBriefcase,
@@ -40,7 +41,9 @@ import type { AppKind, AppPayload } from "./types";
 export const MENUBAR_H = 22;
 export const SIDEBAR_W = 248;
 export const DOCK_H = 84;
-export const DOCK_H_MOBILE = 64;
+/** Phones: the iOS-style status bar and home-indicator strip (see PhoneShell.tsx). */
+export const STATUSBAR_H = 36;
+export const HOMEBAR_H = 22;
 export const MOBILE_QUERY = "(max-width: 767px)";
 
 export const EMAIL = "shubhv2@gmail.com";
@@ -252,6 +255,20 @@ const ICONS: Record<string, IconSpec> = {
 };
 
 /** Glossy rounded tile icon. Project-backed windows use the project's screenshot. */
+/**
+ * ShubhGPT's mark: a glossy "thinking orb" (glass sphere, swirling colour, faint SV, a sparkle).
+ * `thinking` adds a slow swirl and pulse while it's answering.
+ */
+export function Orb({ thinking = false, className = "" }: { thinking?: boolean; className?: string }) {
+  return (
+    <span className={`os-icon os-icon--orb${thinking ? " is-thinking" : ""} ${className}`} aria-hidden>
+      <span className="os-orb-swirl" />
+      <span className="os-orb-mark">SV</span>
+      <span className="os-orb-spark">✦</span>
+    </span>
+  );
+}
+
 export function AppIcon({
   kind,
   payload,
@@ -270,6 +287,7 @@ export function AppIcon({
       </span>
     );
   }
+  if (kind === "shubhgpt" && !name) return <Orb />;
   const key = name ?? (kind === "case" && payload?.caseId ? `case:${payload.caseId}` : kind) ?? "projects";
   const spec = ICONS[key] ?? ICONS[kind ?? "projects"] ?? ICONS.projects;
   const Icon = spec.icon;
@@ -305,6 +323,18 @@ export function accentFor(payload?: AppPayload): string | undefined {
 
 export function isMobileNow() {
   return typeof window !== "undefined" && window.matchMedia(MOBILE_QUERY).matches;
+}
+
+export function useIsMobile() {
+  return useSyncExternalStore(
+    (cb) => {
+      const mq = window.matchMedia(MOBILE_QUERY);
+      mq.addEventListener("change", cb);
+      return () => mq.removeEventListener("change", cb);
+    },
+    () => window.matchMedia(MOBILE_QUERY).matches,
+    () => false,
+  );
 }
 
 export function prefersReducedMotion() {

@@ -1,53 +1,17 @@
 "use client";
 import { useState } from "react";
-import { projects } from "@/app/portfolioData";
-import { AppIcon, LINKS, describe } from "./appMeta";
+import { AppIcon, describe } from "./appMeta";
+import { APPS, LINK_ITEMS, type LaunchItem } from "./launcher";
 import { useTrashFull } from "./eggs/trash";
 import { useWM, useWMState } from "./WindowManager";
-import type { AppKind, AppPayload } from "./types";
 
-interface DockItem {
-  key: string;
-  label: string;
-  kind?: AppKind;
-  payload?: AppPayload;
-  icon?: string;
-  href?: string;
-}
-
-const demos = projects.filter((p) => p.demoComponent);
-
-const APPS: DockItem[] = [
-  { key: "projects", label: "Projects", kind: "projects" },
-  { key: "about", label: "About Me", kind: "about" },
-  { key: "shubhgpt", label: "ShubhGPT", kind: "shubhgpt" },
-  { key: "experience", label: "Experience", kind: "experience" },
-  { key: "cases", label: "Case Files", kind: "cases" },
-  ...demos.map((p) => ({
-    key: `demo:${p.name}`,
-    label: p.name,
-    kind: "demo" as const,
-    payload: { project: p },
-  })),
-  { key: "resume", label: "Résumé", kind: "resume" },
-  { key: "photos", label: "Photos", kind: "photos" },
-  { key: "music", label: "Music", kind: "music" },
-  { key: "terminal", label: "Terminal", kind: "terminal" },
-  { key: "virtualpc", label: "Virtual PC", kind: "virtualpc" },
-  { key: "contact", label: "Mail", kind: "contact" },
-];
-
-const LINK_ITEMS: DockItem[] = [
-  { key: "github", label: "GitHub", icon: "github", href: LINKS.github },
-  { key: "linkedin", label: "LinkedIn", icon: "linkedin", href: LINKS.linkedin },
-  { key: "youtube", label: "YouTube", icon: "youtube", href: LINKS.youtube },
-];
+type DockItem = LaunchItem;
 
 const BASE = 48;
 const MAX_GROW = 0.75;
 const REACH = 120;
 
-export default function Dock({ mobile }: { mobile: boolean }) {
+export default function Dock() {
   const wm = useWM();
   const { wins } = useWMState();
   const [pointerX, setPointerX] = useState<number | null>(null);
@@ -57,10 +21,9 @@ export default function Dock({ mobile }: { mobile: boolean }) {
   const trashFull = useTrashFull();
 
   const size = (key: string) => {
-    const base = mobile ? 40 : BASE;
-    if (mobile || pointerX === null || centres[key] === undefined) return base;
+    if (pointerX === null || centres[key] === undefined) return BASE;
     const d = Math.abs(pointerX - centres[key]);
-    return base * (1 + MAX_GROW * Math.max(0, 1 - d / REACH));
+    return BASE * (1 + MAX_GROW * Math.max(0, 1 - d / REACH));
   };
 
   const measure = (e: React.PointerEvent<HTMLElement>) => {

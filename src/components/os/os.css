@@ -1085,7 +1085,8 @@
 .os-shutdown {
   position: absolute;
   inset: 0;
-  z-index: 20000;
+  /* Above the boot and login screens (30000), so Shut Down works from the login screen too. */
+  z-index: 31000;
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -2501,55 +2502,9 @@ html.os-busy .os-root * {
 }
 
 /* ---------- Phones ---------- */
-.os-root.is-mobile {
-  --dock-h: 64px;
-}
+/* The phone shell itself (status bar, home screen, home bar, nav bar) is at the end of this file. */
 .is-mobile .os-desktop-only {
   display: none;
-}
-.is-mobile .os-window {
-  left: 0 !important;
-  top: var(--menubar-h) !important;
-  width: 100% !important;
-  height: calc(100% - var(--menubar-h) - var(--dock-h)) !important;
-  border-radius: 0;
-  transition: none;
-}
-.is-mobile .os-title {
-  left: 60px;
-  right: 16px;
-}
-.is-mobile .os-light {
-  width: 18px;
-  height: 18px;
-}
-.is-mobile .os-light svg {
-  opacity: 1;
-  width: 9px;
-  height: 9px;
-}
-.is-mobile .os-titlebar {
-  height: 30px;
-}
-.is-mobile .os-dock-wrap {
-  height: var(--dock-h);
-}
-.is-mobile .os-dock {
-  width: 100%;
-  height: 100%;
-  margin: 0;
-  padding: 0 10px;
-  align-items: center;
-  gap: 12px;
-  border-radius: 0;
-  overflow-x: auto;
-  scrollbar-width: none;
-}
-.is-mobile .os-dock-label {
-  display: none;
-}
-.is-mobile .os-dock-dot {
-  bottom: -6px;
 }
 .is-mobile .os-doc {
   padding: 18px 16px 24px;
@@ -5043,17 +4998,6 @@ button.os-seq-slot:hover,
 }
 
 /* Phones */
-/* The menu bar is tight on phones: slimmer icons, and long app names get an ellipsis. */
-.is-mobile .os-menubar-icon {
-  width: 24px;
-  margin-right: 0;
-}
-.is-mobile .os-menu-trigger strong {
-  display: block;
-  max-width: 96px;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
 .is-mobile .os-case {
   padding: 14px 14px 22px;
 }
@@ -5677,4 +5621,1074 @@ button.os-seq-slot:hover,
   font: inherit;
   font-size: 11px;
   color: #1a5fd0;
+}
+
+/* =====================================================================
+   Phone shell (.is-mobile): iOS-style status bar, home screen of app icons,
+   full-screen apps with a back/home nav bar, and a swipe-up home bar.
+   ===================================================================== */
+.os-root.is-mobile {
+  --statusbar-h: calc(36px + env(safe-area-inset-top));
+  --homebar-h: calc(22px + env(safe-area-inset-bottom));
+  /* Older rules (Spotlight, toasts) position themselves off these. */
+  --menubar-h: var(--statusbar-h);
+  --dock-h: var(--homebar-h);
+  height: 100dvh;
+}
+
+/* Top bar: SV menu on the left, Control Center on the right, nothing in the middle (that's
+   where the phone's own notch / Dynamic Island sits). */
+.os-phonebar {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  z-index: 10000;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  height: var(--statusbar-h);
+  padding: env(safe-area-inset-top) max(10px, env(safe-area-inset-right)) 0
+    max(10px, env(safe-area-inset-left));
+  color: #fff;
+  background: linear-gradient(rgba(0, 0, 0, 0.3), rgba(0, 0, 0, 0));
+  transition: background 0.25s;
+}
+.os-root.has-app .os-phonebar {
+  background: rgba(16, 18, 24, 0.94);
+}
+.os-phonebar .os-menu-root {
+  position: relative;
+}
+.os-phonebar .os-menu-trigger {
+  padding: 0 4px;
+  color: #fff;
+}
+.os-phonebar .os-menu-trigger[aria-expanded="true"] {
+  background: none;
+}
+.os-phone-time {
+  font-size: 16px;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.35);
+}
+.os-root[data-theme="dark"] .os-phonebar .os-menu {
+  background: rgba(36, 37, 42, 0.92);
+}
+.os-menu-brand {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin: 0 0 4px;
+  padding: 6px 14px 10px;
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--ink);
+  border-bottom: 1px solid var(--rule);
+}
+.os-menu-brand small {
+  display: block;
+  font-size: 12px;
+  font-weight: 400;
+  color: var(--ink-dim);
+}
+.os-menu-brand .os-logo {
+  width: 30px;
+  height: 30px;
+  font-size: 11px;
+}
+.os-phonebar .os-menu {
+  top: calc(100% + 6px);
+  left: 0;
+  background: rgba(246, 246, 248, 0.92);
+  -webkit-backdrop-filter: blur(24px) saturate(1.5);
+  backdrop-filter: blur(24px) saturate(1.5);
+  box-shadow: 0 18px 50px rgba(0, 0, 0, 0.4);
+  min-width: 240px;
+  max-height: calc(100dvh - var(--statusbar-h) - var(--homebar-h) - 24px);
+  overflow-y: auto;
+  border: 1px solid rgba(0, 0, 0, 0.2);
+  border-radius: 14px;
+  padding: 6px 0;
+}
+.os-phonebar .os-menu-item {
+  padding: 9px 18px 9px 8px;
+  font-size: 15px;
+}
+.os-phonebar .os-menubar-icon {
+  width: 36px;
+  height: 32px;
+  font-size: 17px;
+  color: inherit;
+  filter: drop-shadow(0 1px 1px rgba(0, 0, 0, 0.35));
+}
+
+/* Control Center */
+.os-cc-wrap {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+.os-cc-eq {
+  display: flex;
+  align-items: flex-end;
+  gap: 2px;
+  height: 22px;
+  padding: 3px 8px;
+  border-radius: 11px;
+  background: rgba(0, 0, 0, 0.35);
+}
+.os-cc-eq span {
+  width: 3px;
+  height: 100%;
+  border-radius: 2px;
+  background: #34d058;
+  transform-origin: bottom;
+  animation: os-eq 0.9s ease-in-out infinite;
+}
+.os-cc-eq span:nth-child(2) {
+  animation-delay: -0.3s;
+}
+.os-cc-eq span:nth-child(3) {
+  animation-delay: -0.6s;
+}
+@keyframes os-eq {
+  0%,
+  100% {
+    transform: scaleY(0.3);
+  }
+  50% {
+    transform: scaleY(1);
+  }
+}
+@keyframes os-cc-in {
+  from {
+    opacity: 0;
+    transform: translateY(-10px) scale(0.96);
+  }
+}
+.os-cc {
+  position: absolute;
+  top: calc(100% + 8px);
+  right: 0;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+  width: min(320px, calc(100vw - 20px));
+  padding: 12px;
+  border-radius: 24px;
+  color: #fff;
+  background: rgba(28, 30, 38, 0.82);
+  -webkit-backdrop-filter: blur(24px) saturate(1.6);
+  backdrop-filter: blur(24px) saturate(1.6);
+  box-shadow: 0 18px 50px rgba(0, 0, 0, 0.45), inset 0 0 0 1px rgba(255, 255, 255, 0.08);
+  transform-origin: top right;
+  animation: os-cc-in 0.22s cubic-bezier(0.2, 0.8, 0.3, 1);
+}
+.os-cc-tile {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-height: 64px;
+  padding: 10px 12px;
+  border-radius: 18px;
+  font-size: 14px;
+  font-weight: 600;
+  text-align: left;
+  color: inherit;
+  background: rgba(255, 255, 255, 0.1);
+}
+.os-cc-tile small {
+  display: block;
+  font-size: 12px;
+  font-weight: 400;
+  opacity: 0.7;
+}
+.os-cc-tile:disabled {
+  opacity: 0.4;
+}
+.os-cc-glyph {
+  display: grid;
+  flex-shrink: 0;
+  place-items: center;
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  font-size: 15px;
+  background: rgba(255, 255, 255, 0.16);
+}
+.os-cc-tile.is-on .os-cc-glyph {
+  color: #fff;
+  background: #2f7cf6;
+}
+.os-cc-music {
+  grid-column: 1 / -1;
+  justify-content: space-between;
+}
+.os-cc-song {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+  color: inherit;
+  font-weight: 600;
+  text-align: left;
+}
+.os-cc-song > span:last-child {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.os-cc-music .os-cc-glyph {
+  border-radius: 10px;
+  background: linear-gradient(160deg, #ff7ab2, #b44dff);
+}
+.os-cc-controls {
+  display: flex;
+  flex-shrink: 0;
+  gap: 4px;
+}
+.os-cc-controls button {
+  display: grid;
+  place-items: center;
+  width: 34px;
+  height: 34px;
+  border-radius: 50%;
+  font-size: 14px;
+  color: inherit;
+}
+.os-cc-controls button:active {
+  background: rgba(255, 255, 255, 0.15);
+}
+.os-cc-small {
+  flex-direction: column;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 8px;
+}
+.os-cc-wide {
+  grid-column: 1 / -1;
+  min-height: 52px;
+}
+
+/* Home screen: [Search | Apps] pages, then the Search pill + dots, then the tray. */
+.os-home {
+  position: absolute;
+  top: var(--statusbar-h);
+  bottom: var(--homebar-h);
+  left: 0;
+  right: 0;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+/* Width and position are set inline (one 100%-wide page per screen). */
+.os-home-track {
+  display: flex;
+  flex: 1;
+  min-height: 0;
+  touch-action: pan-y;
+  transition: transform 0.38s cubic-bezier(0.2, 0.85, 0.25, 1);
+}
+.os-home-page {
+  flex: 1 1 0;
+  min-width: 0;
+  min-height: 0;
+  overflow-y: auto;
+  /* Each page scrolls, so it's a scroll container and the track's touch-action stops here.
+     It has to be set again, or the browser takes horizontal swipes (e.g. on Search). */
+  touch-action: pan-y;
+  scrollbar-width: none;
+  padding: 18px max(14px, env(safe-area-inset-right)) 8px max(14px, env(safe-area-inset-left));
+}
+.os-home-grid,
+.os-home-tray {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.os-home-grid {
+  align-content: start;
+  row-gap: 18px;
+}
+/* Pill + dots + tray, floating at the bottom. --home-bottom-h is the room app pages keep free. */
+.os-home {
+  --home-bottom-h: 160px;
+}
+.os-home-bottom {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 8px;
+  pointer-events: none;
+}
+.os-home-bottom > * {
+  pointer-events: auto;
+}
+.os-home-page:not(:first-child) {
+  padding-bottom: var(--home-bottom-h);
+}
+/* Search scrolls to the bottom edge, fading out just above the home bar. */
+.os-home-page:first-child {
+  padding-bottom: 28px;
+  -webkit-mask-image: linear-gradient(#000 calc(100% - 28px), transparent);
+  mask-image: linear-gradient(#000 calc(100% - 28px), transparent);
+}
+.os-home.is-search .os-home-bottom {
+  pointer-events: none;
+}
+.os-home.is-search .os-home-bottom > * {
+  pointer-events: none;
+}
+.os-home-footer {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  padding-top: 6px;
+}
+.os-home-search-pill {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  height: 30px;
+  padding: 0 14px;
+  border-radius: 15px;
+  font-size: 13px;
+  font-weight: 600;
+  color: #fff;
+  background: rgba(255, 255, 255, 0.24);
+  -webkit-backdrop-filter: blur(14px);
+  backdrop-filter: blur(14px);
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.2);
+}
+.os-home-dots {
+  display: flex;
+  gap: 7px;
+}
+.os-home-dots span {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.4);
+  transition: background 0.2s;
+}
+.os-home-dots span.is-on {
+  background: #fff;
+}
+.os-home-dots {
+  align-items: center;
+}
+.os-home-dot-search {
+  width: 8px;
+  height: 8px;
+  color: rgba(255, 255, 255, 0.4);
+}
+.os-home-dot-search.is-on {
+  color: #fff;
+}
+/* App pages show only whole rows, so they never need to scroll. */
+.os-home-page:not(:first-child) {
+  overflow: hidden;
+}
+.os-home-tray {
+  margin: 10px max(14px, env(safe-area-inset-right)) 0 max(14px, env(safe-area-inset-left));
+  padding: 12px 10px;
+  border-radius: 28px;
+  background: rgba(255, 255, 255, 0.28);
+  -webkit-backdrop-filter: blur(18px) saturate(1.4);
+  backdrop-filter: blur(18px) saturate(1.4);
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.25);
+  transition: opacity 0.25s, transform 0.25s;
+}
+.os-root[data-theme="dark"] .os-home-tray {
+  background: rgba(30, 32, 38, 0.45);
+}
+/* On the Search page the pill and tray step aside to leave room for results and the keyboard. */
+.os-home.is-search .os-home-search-pill {
+  visibility: hidden;
+}
+.os-home.is-search .os-home-tray {
+  opacity: 0;
+  transform: translateY(20px);
+  pointer-events: none;
+}
+.os-home.is-search .os-home-footer {
+  display: none;
+}
+
+/* Search page */
+.os-psearch {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  padding-bottom: 20px;
+}
+.os-psearch-field {
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  height: 42px;
+  padding: 0 12px;
+  border-radius: 14px;
+  color: rgba(255, 255, 255, 0.75);
+  background: rgba(30, 32, 40, 0.55);
+  -webkit-backdrop-filter: blur(20px);
+  backdrop-filter: blur(20px);
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.12);
+}
+.os-psearch-field input {
+  flex: 1;
+  min-width: 0;
+  border: 0;
+  outline: none;
+  font: inherit;
+  font-size: 16px; /* 16px stops iOS zooming in on focus */
+  color: #fff;
+  background: none;
+}
+.os-psearch-field input::placeholder {
+  color: rgba(255, 255, 255, 0.55);
+}
+.os-psearch-field input::-webkit-search-cancel-button {
+  display: none;
+}
+.os-psearch-clear {
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  font-size: 16px;
+  line-height: 1;
+  color: #1b1b1b;
+  background: rgba(255, 255, 255, 0.6);
+}
+.os-psearch-body {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+.os-psearch-card {
+  padding: 12px;
+  border-radius: 20px;
+  color: #fff;
+  background: rgba(30, 32, 40, 0.5);
+  -webkit-backdrop-filter: blur(20px) saturate(1.3);
+  backdrop-filter: blur(20px) saturate(1.3);
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.08);
+}
+.os-psearch-card h3 {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin: 0 0 10px;
+  font-size: 13px;
+  font-weight: 600;
+  opacity: 0.8;
+}
+.os-psearch-orb.os-icon--orb {
+  width: 18px;
+  height: 18px;
+}
+.os-psearch-apps .os-home-label {
+  text-shadow: none;
+}
+.os-psearch-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.os-psearch-chips button {
+  padding: 7px 12px;
+  border-radius: 16px;
+  font-size: 13px;
+  color: #fff;
+  background: rgba(255, 255, 255, 0.14);
+}
+.os-psearch-rows {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.os-psearch-rows li + li {
+  border-top: 1px solid rgba(255, 255, 255, 0.08);
+}
+.os-psearch-rows button {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  padding: 8px 2px;
+  text-align: left;
+  color: #fff;
+}
+.os-psearch-thumb {
+  display: block;
+  flex-shrink: 0;
+  width: 36px;
+  height: 36px;
+}
+.os-psearch-text {
+  min-width: 0;
+  font-size: 14px;
+  font-weight: 500;
+}
+.os-psearch-text small {
+  display: block;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 12px;
+  font-weight: 400;
+  opacity: 0.65;
+}
+.os-psearch-text mark {
+  color: inherit;
+  background: rgba(47, 124, 246, 0.55);
+  border-radius: 3px;
+}
+.os-home-app {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  width: 100%;
+  -webkit-tap-highlight-color: transparent;
+}
+.os-home-icon {
+  position: relative;
+  display: block;
+  width: 60px;
+  height: 60px;
+  transition: transform 0.12s, filter 0.12s;
+}
+.os-home-icon .os-icon {
+  font-size: 28px;
+}
+.os-home-app:active .os-home-icon {
+  transform: scale(0.9);
+  filter: brightness(0.8);
+}
+.os-home-label {
+  max-width: 76px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 12px;
+  color: #fff;
+  text-shadow: 0 1px 3px rgba(0, 0, 0, 0.75);
+}
+.os-root.has-app .os-home {
+  visibility: hidden;
+  transition: visibility 0s 0.4s;
+}
+/* While the home bar is dragged, home shows through behind the app and settles in. */
+.os-root.is-swiping-home .os-home {
+  visibility: visible;
+  transition: opacity 0.3s, transform 0.3s;
+  opacity: calc(0.35 + 0.65 * var(--home-p, 0));
+  transform: scale(calc(1.08 - 0.08 * var(--home-p, 0)));
+}
+.os-root.is-swiping-home .os-window {
+  box-shadow: 0 18px 50px rgba(0, 0, 0, 0.45);
+}
+/* Tap / back-to-home: the icons ease in as the app shrinks away. */
+@keyframes os-home-in {
+  from {
+    opacity: 0.4;
+    transform: scale(1.08);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+.os-root.is-homing .os-home {
+  animation: os-home-in 0.38s cubic-bezier(0.2, 0.8, 0.3, 1);
+}
+
+/* Full-screen apps */
+.is-mobile .os-window {
+  left: 0 !important;
+  top: var(--statusbar-h) !important;
+  width: 100% !important;
+  height: calc(100% - var(--statusbar-h) - var(--homebar-h)) !important;
+  border-radius: 0;
+  transition: none;
+}
+.is-mobile .os-window-body {
+  overscroll-behavior: contain;
+}
+.os-navbar {
+  height: 40px;
+  touch-action: auto;
+}
+.os-navbar .os-title {
+  left: 96px;
+  right: 96px;
+  font-size: 15px;
+  font-weight: 600;
+}
+.os-nav-back {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  align-items: center;
+  gap: 3px;
+  max-width: 92px;
+  height: 100%;
+  padding: 0 8px 0 8px;
+  font-size: 15px;
+  color: var(--hilite-2);
+}
+.os-root[data-theme="dark"] .os-nav-back,
+.os-window--dark .os-nav-back {
+  color: #6aaeff;
+}
+.os-nav-back > span:first-child {
+  font-size: 26px;
+  line-height: 1;
+  margin-top: -3px;
+}
+.os-nav-back-label {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+/* Swipe right from the left edge to go back. */
+.os-edge-swipe {
+  position: absolute;
+  top: 40px;
+  bottom: 0;
+  left: 0;
+  z-index: 5;
+  width: 14px;
+  touch-action: none;
+}
+
+/* Phone window motion: zoom out of / back into the home-screen icon; pushed windows slide. */
+@keyframes os-app-zoom-in {
+  from {
+    opacity: 0;
+    transform: scale(0.12);
+    border-radius: 40px;
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+@keyframes os-app-zoom-out {
+  to {
+    opacity: 0;
+    transform: scale(0.12);
+    border-radius: 40px;
+  }
+}
+@keyframes os-push-in {
+  from {
+    transform: translateX(100%);
+  }
+  to {
+    transform: none;
+  }
+}
+@keyframes os-push-out {
+  to {
+    transform: translateX(100%);
+  }
+}
+.is-mobile .os-window.phase-opening,
+.is-mobile .os-window.phase-restoring {
+  animation: os-push-in 0.32s cubic-bezier(0.2, 0.8, 0.3, 1);
+}
+.is-mobile .os-window.has-origin.phase-opening,
+.is-mobile .os-window.has-origin.phase-restoring {
+  animation: os-app-zoom-in 0.36s cubic-bezier(0.2, 0.8, 0.3, 1);
+}
+.is-mobile .os-window.phase-closing {
+  animation: os-push-out 0.18s ease-in forwards;
+}
+/* Without an icon to return to, shrink toward the home bar (an inline origin wins otherwise). */
+.is-mobile .os-window.phase-minimizing {
+  transform-origin: 50% 100%;
+  animation: os-app-zoom-out 0.3s ease-in forwards;
+}
+
+/* Home bar */
+.os-homebar {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 9500;
+  display: grid;
+  place-items: center;
+  height: var(--homebar-h);
+  padding-bottom: env(safe-area-inset-bottom);
+  touch-action: none;
+  -webkit-tap-highlight-color: transparent;
+  cursor: pointer;
+}
+.os-homebar.has-app {
+  background: rgba(16, 18, 24, 0.92);
+}
+.os-homebar-pill {
+  transition: transform 0.2s;
+  width: 134px;
+  height: 5px;
+  border-radius: 3px;
+  background: rgba(255, 255, 255, 0.85);
+  box-shadow: 0 0 2px rgba(0, 0, 0, 0.4);
+}
+
+/* Toasts live outside .os-root, so phones are matched by width: they sit above the home bar,
+   clear of the status bar and the app's nav bar. */
+@media (max-width: 767px) {
+  .os-toasts {
+    top: auto;
+    bottom: calc(30px + env(safe-area-inset-bottom));
+    left: 12px;
+    right: 12px;
+    align-items: center;
+  }
+}
+
+/* =====================================================================
+   ShubhGPT orb (AppIcon for "shubhgpt", and the chat avatar): a glass sphere with swirling
+   colour, a faint SV and a sparkle. `.is-thinking` swirls and pulses while it answers.
+   ===================================================================== */
+.os-icon--orb {
+  /* Children size off the orb itself (cqw), wherever and however big it's drawn. */
+  container-type: size;
+  border-radius: 50%;
+  background:
+    radial-gradient(circle at 30% 28%, rgba(120, 240, 255, 0.95), transparent 42%),
+    radial-gradient(circle at 74% 68%, rgba(255, 92, 196, 0.85), transparent 46%),
+    radial-gradient(circle at 70% 24%, rgba(150, 110, 255, 0.9), transparent 44%),
+    radial-gradient(circle at 50% 55%, #2b4fd8, #160c4a 78%);
+  box-shadow:
+    inset 0 -4px 10px rgba(10, 0, 40, 0.55),
+    inset 0 2px 3px rgba(255, 255, 255, 0.55),
+    0 3px 8px rgba(40, 20, 120, 0.45);
+}
+/* The shared glossy highlight, shaped for a sphere. */
+.os-icon--orb::before {
+  left: 16%;
+  right: 16%;
+  top: 6%;
+  height: 40%;
+  border-radius: 50%;
+  background: linear-gradient(rgba(255, 255, 255, 0.85), rgba(255, 255, 255, 0.04));
+}
+.os-orb-swirl {
+  position: absolute;
+  inset: 8%;
+  border-radius: 50%;
+  background: conic-gradient(
+    from 0deg,
+    rgba(120, 240, 255, 0) 0deg,
+    rgba(120, 240, 255, 0.45) 70deg,
+    rgba(255, 110, 210, 0) 150deg,
+    rgba(255, 110, 210, 0.4) 230deg,
+    rgba(120, 240, 255, 0) 320deg
+  );
+  filter: blur(2px);
+  mix-blend-mode: screen;
+  opacity: 0.7;
+}
+.os-orb-mark {
+  position: relative;
+  z-index: 2;
+  font-size: 34cqw;
+  font-weight: 800;
+  letter-spacing: -0.04em;
+  color: rgba(255, 255, 255, 0.5);
+  text-shadow: 0 0 6px rgba(160, 220, 255, 0.8);
+  line-height: 1;
+}
+.os-orb-spark {
+  position: absolute;
+  z-index: 2;
+  top: 8%;
+  right: 10%;
+  font-size: 26cqw;
+  line-height: 1;
+  color: #fff;
+  text-shadow: 0 0 5px rgba(255, 255, 255, 0.95), 0 0 10px rgba(160, 200, 255, 0.9);
+}
+.os-chat-orb.os-icon--orb {
+  border: none;
+  border-radius: 50%;
+  overflow: hidden;
+}
+@keyframes os-orb-swirl {
+  to {
+    transform: rotate(360deg);
+  }
+}
+@keyframes os-orb-breathe {
+  50% {
+    transform: scale(1.08);
+    box-shadow:
+      inset 0 -4px 10px rgba(10, 0, 40, 0.55),
+      inset 0 2px 3px rgba(255, 255, 255, 0.55),
+      0 0 14px rgba(140, 120, 255, 0.85);
+  }
+}
+.os-icon--orb.is-thinking {
+  animation: os-orb-breathe 1.4s ease-in-out infinite;
+}
+.os-icon--orb.is-thinking .os-orb-swirl {
+  opacity: 1;
+  animation: os-orb-swirl 1.6s linear infinite;
+}
+
+/* =====================================================================
+   Phone Settings app (PhoneSettings.tsx): iOS-style inset grouped list.
+   ===================================================================== */
+.os-set {
+  --set-bg: #f2f2f7;
+  --set-card: #fff;
+  --set-ink: #1c1c1e;
+  --set-dim: #8a8a8e;
+  --set-rule: rgba(60, 60, 67, 0.16);
+  min-height: 100%;
+  padding: 6px 16px 28px;
+  color: var(--set-ink);
+  background: var(--set-bg);
+  font-size: 16px;
+}
+.os-root[data-theme="dark"] .os-set {
+  --set-bg: #000;
+  --set-card: #1c1c1e;
+  --set-ink: #f2f2f7;
+  --set-dim: #98989f;
+  --set-rule: rgba(84, 84, 88, 0.6);
+}
+@keyframes os-set-in {
+  from {
+    opacity: 0;
+    transform: translateX(24px);
+  }
+}
+.os-set-page {
+  animation: os-set-in 0.25s cubic-bezier(0.2, 0.8, 0.3, 1);
+}
+.os-set-back {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  margin: 4px 0 0 -6px;
+  padding: 4px 6px;
+  font-size: 16px;
+  color: #2f7cf6;
+}
+.os-set-title {
+  margin: 6px 0 14px;
+  font-size: 30px;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+}
+.os-set-caption {
+  margin: 18px 16px 6px;
+  font-size: 12px;
+  text-transform: uppercase;
+  letter-spacing: 0.02em;
+  color: var(--set-dim);
+}
+.os-set-note {
+  margin: 8px 16px 0;
+  font-size: 12px;
+  color: var(--set-dim);
+}
+.os-set-group {
+  margin: 0 0 22px;
+  padding: 0;
+  list-style: none;
+  border-radius: 12px;
+  overflow: hidden;
+  background: var(--set-card);
+}
+.os-set-group > li + li .os-set-row {
+  box-shadow: inset 0 1px 0 var(--set-rule);
+}
+.os-set-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+  min-height: 46px;
+  padding: 8px 14px;
+  font-size: 16px;
+  text-align: left;
+  color: var(--set-ink);
+}
+button.os-set-row:active {
+  background: var(--set-rule);
+}
+.os-set-glyph {
+  display: grid;
+  flex-shrink: 0;
+  place-items: center;
+  width: 30px;
+  height: 30px;
+  border-radius: 8px;
+  font-size: 15px;
+  color: #fff;
+}
+.os-set-label {
+  flex: 1;
+  min-width: 0;
+}
+.os-set-label small {
+  display: block;
+  font-size: 13px;
+  color: var(--set-dim);
+}
+.os-set-label.is-danger {
+  color: #ff3b30;
+}
+.os-set-detail {
+  color: var(--set-dim);
+}
+.os-set-chevron {
+  flex-shrink: 0;
+  font-size: 13px;
+  color: #c4c4c7;
+}
+.os-set-check {
+  color: #2f7cf6;
+}
+.os-set-profile {
+  min-height: 80px;
+}
+.os-set-avatar {
+  flex-shrink: 0;
+  width: 58px;
+  height: 58px;
+  border-radius: 50%;
+  object-fit: cover;
+}
+.os-set-profile .os-set-label {
+  font-size: 20px;
+  font-weight: 500;
+}
+
+/* iOS switch */
+.os-switch {
+  position: relative;
+  flex-shrink: 0;
+  width: 51px;
+  height: 31px;
+  border-radius: 16px;
+  background: #e5e5ea;
+  transition: background 0.2s;
+}
+.os-root[data-theme="dark"] .os-switch {
+  background: #39393d;
+}
+.os-switch span {
+  position: absolute;
+  top: 2px;
+  left: 2px;
+  width: 27px;
+  height: 27px;
+  border-radius: 50%;
+  background: #fff;
+  box-shadow: 0 3px 8px rgba(0, 0, 0, 0.15), 0 1px 1px rgba(0, 0, 0, 0.16);
+  transition: transform 0.2s cubic-bezier(0.3, 1.3, 0.5, 1);
+}
+.os-switch.is-on,
+.os-root[data-theme="dark"] .os-switch.is-on {
+  background: #34c759;
+}
+.os-switch.is-on span {
+  transform: translateX(20px);
+}
+
+/* Display: Light / Dark previews */
+.os-set-modes {
+  display: flex;
+  justify-content: space-around;
+  padding: 16px 10px 12px;
+}
+.os-set-mode {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  font-size: 15px;
+  color: var(--set-ink);
+}
+.os-set-mode-preview {
+  width: 72px;
+  height: 120px;
+  border-radius: 12px;
+  box-shadow: 0 0 0 1px var(--set-rule), 0 2px 6px rgba(0, 0, 0, 0.12);
+}
+.os-set-mode-preview--light {
+  background:
+    linear-gradient(#fff 0 22%, transparent 22%) top / 100% 100% no-repeat,
+    linear-gradient(160deg, #8ec5ff, #2f7cf6);
+}
+.os-set-mode-preview--dark {
+  background:
+    linear-gradient(#1c1c1e 0 22%, transparent 22%) top / 100% 100% no-repeat,
+    linear-gradient(160deg, #3b3f8f, #0d0f2a);
+}
+.os-set-mode.is-on .os-set-mode-preview {
+  box-shadow: 0 0 0 3px #2f7cf6;
+}
+.os-set-radio {
+  display: grid;
+  place-items: center;
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  font-size: 11px;
+  color: #fff;
+  box-shadow: inset 0 0 0 1.5px #c4c4c7;
+}
+.os-set-mode.is-on .os-set-radio {
+  background: #2f7cf6;
+  box-shadow: none;
+}
+
+/* Wallpaper grid */
+.os-set-walls {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 14px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.os-set-wall {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  width: 100%;
+  font-size: 14px;
+  color: var(--set-ink);
+}
+.os-set-wall .os-wall-swatch {
+  position: relative;
+  display: block;
+  width: 100%;
+  aspect-ratio: 9 / 14;
+  height: auto;
+  border-radius: 14px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
+}
+.os-set-wall[aria-checked="true"] .os-wall-swatch {
+  box-shadow: 0 0 0 3px #2f7cf6;
 }

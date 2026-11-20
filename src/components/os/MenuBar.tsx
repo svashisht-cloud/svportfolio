@@ -8,6 +8,7 @@ import { play } from "./sounds";
 import { useToast } from "./Toast";
 import { NowPlaying } from "./Music";
 import Spotlight from "./Spotlight";
+import ControlCenter from "./ControlCenter";
 import { unlock } from "./achievements";
 import { toSlug } from "./links";
 import { useCopyLink } from "./useCopyLink";
@@ -25,14 +26,17 @@ interface Menu {
   items: MenuEntry[];
   /** Hidden on phones to keep the bar short. */
   desktopOnly?: boolean;
+  /** Shown above the items (phones: the SV logo and name). */
+  header?: React.ReactNode;
 }
 
-function useClock() {
+/** Formatted time; phones leave off the weekday. */
+function useClock(withDay = true) {
   const [now, setNow] = useState("");
   useEffect(() => {
     const fmt = () =>
       new Date().toLocaleString(undefined, {
-        weekday: "short",
+        ...(withDay ? { weekday: "short" as const } : {}),
         hour: "numeric",
         minute: "2-digit",
       });
@@ -42,7 +46,7 @@ function useClock() {
       window.clearTimeout(first);
       window.clearInterval(id);
     };
-  }, []);
+  }, [withDay]);
   return now;
 }
 
@@ -52,16 +56,19 @@ export default function MenuBar({
   onShutDown,
   onRestart,
   onLogOut,
+  mobile = false,
 }: {
   onShutDown: () => void;
   onRestart: () => void;
   onLogOut: () => void;
+  /** Phones get a slim bar: the SV menu on the left, Control Center on the right. */
+  mobile?: boolean;
 }) {
   const wm = useWM();
   const { wins, focused } = useWMState();
   const [open, setOpen] = useState<string | null>(null);
   const barRef = useRef<HTMLElement>(null);
-  const clock = useClock();
+  const clock = useClock(!mobile);
   const theme = useEffectiveTheme();
   const prefs = usePrefs();
   const toast = useToast();
@@ -129,7 +136,10 @@ export default function MenuBar({
         { label: "View Résumé", run: () => wm.launch("resume") },
         { label: "Download Résumé", run: downloadResume },
         "sep",
-        { label: "Restart in Windows…", run: () => wm.launch("virtualpc") },
+
+        ...(mobile
+          ? []
+          : ([{ label: "Restart in Windows…", run: () => wm.launch("virtualpc") }] as MenuEntry[])),
         { label: "Restart…", run: onRestart },
         { label: "Shut Down…", run: onShutDown },
         "sep",
@@ -236,69 +246,117 @@ export default function MenuBar({
     },
   ];
 
+  const renderMenu = (m: Menu) => (
+    <div key={m.key} className={`os-menu-root${m.desktopOnly ? " os-desktop-only" : ""}`}>
+      <button
+        type="button"
+        className="os-menu-trigger"
+        aria-haspopup="menu"
+        aria-expanded={open === m.key}
+        aria-label={m.aria}
+        onClick={() => {
+          if (m.key === "logo" && countLogoClick()) return;
+          setOpen((o) => (o === m.key ? null : m.key));
+        }}
+        onPointerEnter={() => {
+          if (open && open !== m.key) setOpen(m.key);
+        }}
+      >
+        {m.label}
+      </button>
+      {open === m.key && (
+        <ul className="os-menu" role="menu">
+          {m.header && (
+            <li className="os-menu-brand" role="presentation">
+              {m.header}
+            </li>
+          )}
+          {m.items.map((it, i) =>
+            it === "sep" ? (
+              <li key={`sep-${i}`} className="os-menu-sep" role="separator" />
+            ) : (
+              <li key={`${it.label}-${i}`} role="none">
+                <button
+                  type="button"
+                  role="menuitem"
+                  className="os-menu-item"
+                  disabled={it.disabled}
+                  onClick={() => {
+                    setOpen(null);
+                    it.run?.();
+                  }}
+                >
+                  <span className="os-menu-check" aria-hidden>
+                    {it.checked ? "✓" : ""}
+                  </span>
+                  <span className="os-menu-label">{it.label}</span>
+                  {it.hint && <span className="os-menu-hint">{it.hint}</span>}
+                </button>
+              </li>
+            ),
+          )}
+        </ul>
+      )}
+    </div>
+  );
+
+  const themeButton = (
+    <button
+      type="button"
+      className="os-menubar-icon"
+      aria-label={theme === "dark" ? "Switch to light mode" : "Switch to dark mode"}
+      title={theme === "dark" ? "Light mode" : "Dark mode"}
+      onClick={() => setPrefs({ theme: theme === "dark" ? "light" : "dark" })}
+    >
+      {theme === "dark" ? <FaSun aria-hidden /> : <FaMoon aria-hidden />}
+    </button>
+  );
+
+  const clockButton = (
+    <button
+      type="button"
+      className="os-clock"
+      aria-label="Clock: open calendar"
+      aria-expanded={calendarOpen}
+      onClick={() => setCalendarOpen((o) => !o)}
+    >
+      {clock}
+    </button>
+  );
+
+  // Phones: the time (top-left) opens the SV system menu; Control Center is top-right.
+  // The middle stays clear for the notch / Dynamic Island.
+  if (mobile) {
+    const system: Menu = {
+      ...menus[0],
+      label: <span className="os-phone-time">{clock}</span>,
+      aria: "System menu",
+      header: (
+        <>
+          <span className="os-logo">SV</span>
+          <span>
+            Shubh Vashisht
+            <small>SV OS X · Software Engineer</small>
+          </span>
+        </>
+      ),
+    };
+    return (
+      <header className="os-phonebar" ref={barRef}>
+        {renderMenu(system)}
+        <ControlCenter />
+      </header>
+    );
+  }
+
   return (
     <header className="os-menubar" ref={barRef}>
       <nav className="os-menus" aria-label="Menu bar">
-        {menus.map((m) => (
-          <div key={m.key} className={`os-menu-root${m.desktopOnly ? " os-desktop-only" : ""}`}>
-            <button
-              type="button"
-              className="os-menu-trigger"
-              aria-haspopup="menu"
-              aria-expanded={open === m.key}
-              aria-label={m.aria}
-              onClick={() => {
-                if (m.key === "logo" && countLogoClick()) return;
-                setOpen((o) => (o === m.key ? null : m.key));
-              }}
-              onPointerEnter={() => {
-                if (open && open !== m.key) setOpen(m.key);
-              }}
-            >
-              {m.label}
-            </button>
-            {open === m.key && (
-              <ul className="os-menu" role="menu">
-                {m.items.map((it, i) =>
-                  it === "sep" ? (
-                    <li key={`sep-${i}`} className="os-menu-sep" role="separator" />
-                  ) : (
-                    <li key={`${it.label}-${i}`} role="none">
-                      <button
-                        type="button"
-                        role="menuitem"
-                        className="os-menu-item"
-                        disabled={it.disabled}
-                        onClick={() => {
-                          setOpen(null);
-                          it.run?.();
-                        }}
-                      >
-                        <span className="os-menu-check" aria-hidden>
-                          {it.checked ? "✓" : ""}
-                        </span>
-                        <span className="os-menu-label">{it.label}</span>
-                        {it.hint && <span className="os-menu-hint">{it.hint}</span>}
-                      </button>
-                    </li>
-                  ),
-                )}
-              </ul>
-            )}
-          </div>
-        ))}
+        {menus.map(renderMenu)}
       </nav>
       <div className="os-menubar-right">
         <NowPlaying />
-        <button
-          type="button"
-          className="os-menubar-icon"
-          aria-label={theme === "dark" ? "Switch to light mode" : "Switch to dark mode"}
-          title={theme === "dark" ? "Light mode" : "Dark mode"}
-          onClick={() => setPrefs({ theme: theme === "dark" ? "light" : "dark" })}
-        >
-          {theme === "dark" ? <FaSun aria-hidden /> : <FaMoon aria-hidden />}
-        </button>
+        {themeButton}
         <button
           type="button"
           className="os-menubar-icon"
@@ -311,15 +369,7 @@ export default function MenuBar({
         >
           {prefs.sound ? <FaVolumeUp aria-hidden /> : <FaVolumeMute aria-hidden />}
         </button>
-        <button
-          type="button"
-          className="os-clock"
-          aria-label="Clock: open calendar"
-          aria-expanded={calendarOpen}
-          onClick={() => setCalendarOpen((o) => !o)}
-        >
-          {clock}
-        </button>
+        {clockButton}
         {calendarOpen && <Calendar onClose={() => setCalendarOpen(false)} />}
         <Spotlight />
       </div>
