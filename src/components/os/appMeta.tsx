@@ -1,6 +1,7 @@
 "use client";
 import Image from "next/image";
 import { useSyncExternalStore } from "react";
+import { getPrefs } from "./prefs";
 import type { IconType } from "react-icons";
 import {
   FaBriefcase,
@@ -40,6 +41,13 @@ import type { AppKind, AppPayload } from "./types";
 
 export const MENUBAR_H = 22;
 export const SIDEBAR_W = 248;
+/** Width of the collapsed sidebar (an icon rail). */
+export const RAIL_W = 52;
+
+/** The sidebar's current width on the desktop: full, or the rail when collapsed. */
+export function sidebarWidth() {
+  return getPrefs().sidebar ? SIDEBAR_W : RAIL_W;
+}
 export const DOCK_H = 84;
 /** Phones: the iOS-style status bar and home-indicator strip (see PhoneShell.tsx). */
 export const STATUSBAR_H = 36;
@@ -51,6 +59,8 @@ export const LINKS = {
   github: "https://github.com/svashisht-cloud",
   linkedin: "https://www.linkedin.com/in/shubh-vashisht/",
   youtube: "https://www.youtube.com/@shubhy_vashisht",
+  /** Book a 1:1 call. */
+  topmate: "https://topmate.io/shubhvashisht",
 };
 
 export function describe(kind: AppKind, payload?: AppPayload): { id: string; title: string } {
@@ -211,6 +221,20 @@ export function appName(kind: AppKind | undefined, payload?: AppPayload): string
   }
 }
 
+/**
+ * Topmate's logo, redrawn as a vector: a red disc with a black outline and an offset
+ * black shadow, and a white "pac-man" opening to the right. Keeps its own colours.
+ */
+export function TopmateLogo({ className, ...rest }: React.SVGProps<SVGSVGElement>) {
+  return (
+    <svg viewBox="0 0 100 100" className={`os-logo-topmate${className ? ` ${className}` : ""}`} aria-hidden {...rest}>
+      <circle cx="53" cy="53" r="44" fill="#000" />
+      <circle cx="47" cy="47" r="42" fill="#e8483a" stroke="#000" strokeWidth="5" />
+      <path d="M49 48.5 L67.8 36.5 A24 24 0 1 0 67.8 60.5 Z" fill="#fff" />
+    </svg>
+  );
+}
+
 interface IconSpec {
   icon: IconType;
   c1: string;
@@ -245,6 +269,7 @@ const ICONS: Record<string, IconSpec> = {
   github: { icon: FaGithub, c1: "#8a929e", c2: "#161b22" },
   linkedin: { icon: FaLinkedin, c1: "#7cc0ff", c2: "#0a5cb8" },
   youtube: { icon: FaYoutube, c1: "#ff8a80", c2: "#c4100b" },
+  topmate: { icon: TopmateLogo as IconType, c1: "#ffffff", c2: "#e6e8ec" },
   photos: { icon: FaImages, c1: "#ffe08a", c2: "#e0631d" },
   terminal: { icon: FaTerminal, c1: "#5a5f66", c2: "#101215" },
   prefs: { icon: FaCog, c1: "#e2e5ea", c2: "#6b7480" },

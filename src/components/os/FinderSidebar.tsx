@@ -2,7 +2,8 @@
 import { useState } from "react";
 import { FaSearch, FaStar } from "react-icons/fa";
 import { experiences, projects } from "@/app/portfolioData";
-import { AppIcon, describe } from "./appMeta";
+import { AppIcon, describe, useIsMobile } from "./appMeta";
+import { setPrefs, usePrefs } from "./prefs";
 import { useWM, useWMState } from "./WindowManager";
 import type { AppKind, AppPayload } from "./types";
 
@@ -29,6 +30,8 @@ function matches(q: string, ...fields: (string | string[] | undefined)[]) {
 /** The Projects / Experience source list. Pinned on desktop, its own window on mobile. */
 export function FinderList() {
   const wm = useWM();
+  // Terminal needs a keyboard, so phones don't list it.
+  const mobile = useIsMobile();
   const { focused } = useWMState();
   const [query, setQuery] = useState("");
   // Newest role (last in the data) starts expanded.
@@ -95,7 +98,7 @@ export function FinderList() {
           <>
             <h3>Favorites</h3>
             <ul>
-              {FAVORITES.map((f) => (
+              {FAVORITES.filter((f) => !(mobile && f.kind === "terminal")).map((f) => (
                 item({ key: f.kind, kind: f.kind, label: f.label })
               ))}
             </ul>
@@ -169,19 +172,70 @@ export function FinderList() {
   );
 }
 
-/** Pinned brushed-metal Finder window on the left edge (desktop only). */
-export default function FinderSidebar() {
+/** Sidebar-shaped glyph for the collapse/expand button. */
+function SidebarGlyph() {
   return (
-    <aside className="os-sidebar" aria-label="Finder">
+    <svg viewBox="0 0 16 16" width="14" height="14" aria-hidden>
+      <rect x="1.5" y="2.5" width="13" height="11" rx="2" fill="none" stroke="currentColor" strokeWidth="1.3" />
+      <path d="M6 3v10" stroke="currentColor" strokeWidth="1.3" />
+      <path d="M3 5.5h1.5M3 7.5h1.5M3 9.5h1.5" stroke="currentColor" strokeWidth="1" />
+    </svg>
+  );
+}
+
+/** The collapsed sidebar: Favorites as an icon-only rail. */
+function FinderRail() {
+  const wm = useWM();
+  const { focused } = useWMState();
+  return (
+    <nav className="os-rail" aria-label="Favorites">
+      <ul>
+        {FAVORITES.map((f) => (
+          <li key={f.kind}>
+            <button
+              type="button"
+              className={`os-rail-item${focused?.kind === f.kind ? " is-active" : ""}`}
+              title={f.label}
+              aria-label={f.label}
+              onClick={() => wm.launch(f.kind)}
+            >
+              <AppIcon kind={f.kind} />
+            </button>
+          </li>
+        ))}
+      </ul>
+    </nav>
+  );
+}
+
+/** Pinned brushed-metal Finder window on the left edge (desktop only). Collapses to a rail (prefs.sidebar). */
+export default function FinderSidebar() {
+  const { sidebar } = usePrefs();
+  return (
+    <aside className={`os-sidebar${sidebar ? "" : " is-collapsed"}`} aria-label="Finder">
       <div className="os-titlebar os-titlebar--metal">
-        <div className="os-lights" aria-hidden>
-          <span className="os-light os-light--close is-disabled" />
-          <span className="os-light os-light--min is-disabled" />
-          <span className="os-light os-light--max is-disabled" />
-        </div>
-        <h2 className="os-title">Shubh&apos;s Mac</h2>
+        {sidebar && (
+          <>
+            <div className="os-lights" aria-hidden>
+              <span className="os-light os-light--close is-disabled" />
+              <span className="os-light os-light--min is-disabled" />
+              <span className="os-light os-light--max is-disabled" />
+            </div>
+            <h2 className="os-title">Shubh&apos;s Mac</h2>
+          </>
+        )}
+        <button
+          type="button"
+          className="os-sidebar-toggle"
+          onClick={() => setPrefs({ sidebar: !sidebar })}
+          aria-expanded={sidebar}
+          aria-label={sidebar ? "Hide sidebar" : "Show sidebar"}
+          title={sidebar ? "Hide Sidebar (⌘⌥S)" : "Show Sidebar (⌘⌥S)"}
+        >
+          <SidebarGlyph />
+        </button>
       </div>
-      <FinderList />
+      {sidebar ? <FinderList /> : <FinderRail />}
     </aside>
   );
 }

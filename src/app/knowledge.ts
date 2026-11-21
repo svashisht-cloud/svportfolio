@@ -19,6 +19,7 @@ const LINKS = {
   github: "https://github.com/svashisht-cloud",
   linkedin: "https://www.linkedin.com/in/shubh-vashisht/",
   youtube: "https://www.youtube.com/@shubhy_vashisht",
+  topmate: "https://topmate.io/shubhvashisht",
 };
 
 const list = (items: string[]) =>
@@ -130,8 +131,8 @@ export const KNOWLEDGE: KnowledgeEntry[] = [
   {
     id: "contact",
     title: "Contact",
-    text: `The best way to reach me is email: ${EMAIL}. You can also find me on GitHub (${LINKS.github}), LinkedIn (${LINKS.linkedin}) and YouTube (${LINKS.youtube}).`,
-    keywords: ["contact", "reach", "email", "mail", "linkedin", "github", "youtube", "get in touch", "talk to you", "connect"],
+    text: `The best way to reach me is email: ${EMAIL}. You can also find me on GitHub (${LINKS.github}), LinkedIn (${LINKS.linkedin}) and YouTube (${LINKS.youtube}). To book a 1:1 call with me, use Topmate (${LINKS.topmate}).`,
+    keywords: ["contact", "reach", "email", "mail", "linkedin", "github", "youtube", "get in touch", "talk to you", "connect", "topmate", "call", "book", "meeting", "1:1", "mentorship"],
   },
   {
     id: "resume",

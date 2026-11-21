@@ -196,6 +196,11 @@ export default function MenuBar({
         { label: "Console", run: () => wm.launch("console") },
         "sep",
         {
+          label: prefs.sidebar ? "Hide Sidebar" : "Show Sidebar",
+          hint: "⌥⌘S",
+          run: () => setPrefs({ sidebar: !prefs.sidebar }),
+        },
+        {
           label: prefs.widgets ? "Hide Widgets" : "Show Widgets",
           run: () => setPrefs({ widgets: !prefs.widgets }),
         },
@@ -211,6 +216,8 @@ export default function MenuBar({
         { label: "GitHub", run: () => openTab(LINKS.github) },
         { label: "LinkedIn", run: () => openTab(LINKS.linkedin) },
         { label: "YouTube", run: () => openTab(LINKS.youtube) },
+        "sep",
+        { label: "Book a Call (Topmate)", run: () => openTab(LINKS.topmate) },
       ],
     },
     {
@@ -355,7 +362,7 @@ export default function MenuBar({
         {menus.map(renderMenu)}
       </nav>
       <div className="os-menubar-right">
-        <NowPlaying />
+        <NowPlaying onOpen={() => wm.launch("music")} />
         {themeButton}
         <button
           type="button"

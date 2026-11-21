@@ -13,18 +13,23 @@ import {
   WiThunderstorm,
 } from "react-icons/wi";
 import { stickyNote } from "@/app/widgets";
-import { SIDEBAR_W } from "./appMeta";
+import { sidebarWidth } from "./appMeta";
+import type { ContextMenuState } from "./ContextMenu";
 import { skillCounts } from "./commands";
 import { useMusic } from "./Music";
 import { log } from "./syslog";
 import TileGame from "./TileGame";
+import { usePrefs } from "./prefs";
+import { widgetMenu, setWidgetShown } from "./widgetMenu";
+import { WIDGETS, type WidgetId } from "./widgetList";
 import { useWM } from "./WindowManager";
 
-type WidgetId = "clock" | "note" | "music" | "weather" | "stack" | "tile";
 type Positions = Partial<Record<WidgetId, { x: number; y: number }>>;
 
 const KEY = "sv-os-widgets";
-const ORDER: WidgetId[] = ["clock", "note", "music", "weather", "stack", "tile"];
+const ORDER: WidgetId[] = WIDGETS.map((w) => w.id);
+/** Room each widget takes in the default column (its height plus a gap). */
+const SLOT_H: Partial<Record<WidgetId, number>> = { clock: 172, weather: 125, note: 130, music: 84, stack: 206 };
 
 function loadPositions(): Positions {
   try {
@@ -42,13 +47,17 @@ function savePositions(p: Positions) {
   }
 }
 
-/** Default spots: a column to the left of the desktop icons. */
-function defaultPosition(id: WidgetId) {
-  const i = ORDER.indexOf(id);
+/** Default spots: the shown widgets stacked (no gaps) in a column to the left of the desktop icons. */
+function defaultPosition(id: WidgetId, shown: WidgetId[]) {
+  const minX = sidebarWidth() + 40;
   // The tile puzzle starts in a second column, left of the others.
-  if (id === "tile") return { x: Math.max(SIDEBAR_W + 40, window.innerWidth - 120 - 210 - 222), y: 270 };
-  const heights = [0, 172, 330, 420, 520];
-  return { x: Math.max(SIDEBAR_W + 40, window.innerWidth - 120 - 210), y: 40 + heights[i] };
+  if (id === "tile") return { x: Math.max(minX, window.innerWidth - 120 - 210 - 222), y: 270 };
+  let y = 40;
+  for (const w of ORDER) {
+    if (w === id) break;
+    if (w !== "tile" && shown.includes(w)) y += SLOT_H[w] ?? 120;
+  }
+  return { x: Math.max(minX, window.innerWidth - 120 - 210), y };
 }
 
 function AnalogClock() {
@@ -246,9 +255,12 @@ function StackWidget() {
   );
 }
 
-/** Draggable glass widgets on the desktop (Dashboard-style). Desktop only. */
-export default function Widgets() {
+const NAME = Object.fromEntries(WIDGETS.map((w) => [w.id, w.name])) as Record<WidgetId, string>;
+
+/** Draggable glass widgets on the desktop (Dashboard-style). Desktop only; which ones show is `prefs.shownWidgets`. */
+export default function Widgets({ showMenu }: { showMenu: (m: ContextMenuState) => void }) {
   const wm = useWM();
+  const { shownWidgets } = usePrefs();
   const [pos, setPos] = useState<Positions | null>(null);
   const drag = useRef<{ id: WidgetId; dx: number; dy: number; last?: { x: number; y: number } } | null>(null);
 
@@ -259,7 +271,7 @@ export default function Widgets() {
 
   if (!pos) return null;
 
-  const at = (id: WidgetId) => pos[id] ?? defaultPosition(id);
+  const at = (id: WidgetId) => pos[id] ?? defaultPosition(id, shownWidgets);
 
   const begin = (id: WidgetId) => (e: React.PointerEvent<HTMLElement>) => {
     if (e.button !== 0 || (e.target as HTMLElement).closest("a, button")) return;
@@ -284,6 +296,8 @@ export default function Widgets() {
     if (d.last) savePositions({ ...pos, [d.id]: d.last });
   };
 
+  const shown = (id: WidgetId) => shownWidgets.includes(id);
+
   const card = (
     id: WidgetId,
     className: string,
@@ -291,6 +305,7 @@ export default function Widgets() {
     label: string,
     onDoubleClick?: () => void,
   ) => {
+    if (!shown(id)) return null;
     const p = at(id);
     return (
       <section
@@ -303,6 +318,15 @@ export default function Widgets() {
         onPointerUp={end}
         onPointerCancel={end}
         onDoubleClick={onDoubleClick}
+        onContextMenu={(e) => {
+          e.preventDefault();
+          e.stopPropagation();
+          showMenu({
+            x: e.clientX,
+            y: e.clientY,
+            items: () => [{ label: `Remove “${NAME[id]}” Widget`, run: () => setWidgetShown(id, false) }, "sep", ...widgetMenu()],
+          });
+        }}
         title={onDoubleClick ? "Double-click to open" : undefined}
       >
         {children}

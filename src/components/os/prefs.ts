@@ -1,6 +1,7 @@
 "use client";
 import { useSyncExternalStore } from "react";
 import { log } from "./syslog";
+import { DEFAULT_WIDGETS, isWidgetId, type WidgetId } from "./widgetList";
 
 export const WALLPAPERS = [
   { id: "aqua", name: "Aqua Blue" },
@@ -21,8 +22,12 @@ export interface Prefs {
   theme: ThemeMode;
   /** Sound effects. Off by default. */
   sound: boolean;
-  /** Dashboard widgets on the desktop. */
+  /** Dashboard widgets on the desktop (master switch). */
   widgets: boolean;
+  /** Which widgets are on the desktop, chosen from the right-click menu. */
+  shownWidgets: WidgetId[];
+  /** Finder sidebar expanded (true) or collapsed to a rail. Desktop only. */
+  sidebar: boolean;
 }
 
 const KEY = "sv-os-prefs";
@@ -32,6 +37,8 @@ const DEFAULTS: Prefs = {
   theme: "system",
   sound: false,
   widgets: true,
+  shownWidgets: DEFAULT_WIDGETS,
+  sidebar: true,
 };
 
 let current: Prefs | null = null;
@@ -50,6 +57,10 @@ function load(): Prefs {
       theme: parsed.theme === "light" || parsed.theme === "dark" ? parsed.theme : "system",
       sound: parsed.sound === true,
       widgets: parsed.widgets !== false,
+      shownWidgets: Array.isArray(parsed.shownWidgets)
+        ? [...new Set(parsed.shownWidgets.filter(isWidgetId))]
+        : DEFAULT_WIDGETS,
+      sidebar: parsed.sidebar !== false,
     };
   } catch {
     return DEFAULTS;

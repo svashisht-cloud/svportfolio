@@ -17,7 +17,7 @@ import {
 import { experiences, isCurrentRole, projects, type Project } from "@/app/portfolioData";
 import { photos } from "@/app/photos";
 import { impact, profile } from "@/app/profile";
-import { AppIcon, EMAIL, LINKS, describe, prefersReducedMotion, useIsMobile } from "./appMeta";
+import { AppIcon, EMAIL, LINKS, TopmateLogo, describe, prefersReducedMotion, useIsMobile } from "./appMeta";
 import { MusicApp, useMusic } from "./Music";
 import { WALLPAPERS, setPrefs, usePrefs, type ThemeMode } from "./prefs";
 import Terminal from "./Terminal";
@@ -229,6 +229,13 @@ function AboutApp() {
         </ExternalButton>
         <ExternalButton href={LINKS.youtube}>
           <FaYoutube aria-hidden /> YouTube
+        </ExternalButton>
+      </div>
+
+      <h3>Talk to me</h3>
+      <div className="os-actions">
+        <ExternalButton href={LINKS.topmate} primary>
+          <TopmateLogo /> Book a call on Topmate
         </ExternalButton>
       </div>
 
@@ -653,6 +660,9 @@ function ContactApp({ prefill }: { prefill?: string }) {
           <FaPaperPlane aria-hidden /> Send
         </button>
         <span className="os-toolbar-note">Opens in your email app</span>
+        <ExternalButton href={LINKS.topmate}>
+          <TopmateLogo /> Book a call
+        </ExternalButton>
       </div>
       <div className="os-mail-field">
         <span>To:</span>
@@ -990,6 +1000,24 @@ function InfoApp({ payload }: { payload?: AppPayload }) {
   );
 }
 
+/** Terminal on a laptop; on phones (deep link, adventure, sudo) a card, since it needs a keyboard. */
+function TerminalApp({ initialCommand }: { initialCommand?: string }) {
+  const wm = useWM();
+  const mobile = useIsMobile();
+  if (!mobile) return <Terminal initialCommand={initialCommand} />;
+  return (
+    <div className="os-center">
+      <p>
+        <strong>Terminal</strong> needs a keyboard, so try it on a laptop.
+      </p>
+      <p className="os-meta">Meanwhile, ShubhGPT can answer the same questions.</p>
+      <button type="button" className="aqua-btn aqua-btn--primary" onClick={() => wm.launch("shubhgpt")}>
+        Ask ShubhGPT
+      </button>
+    </div>
+  );
+}
+
 function TrashApp() {
   const full = useTrashFull();
   const toast = useToast();
@@ -1130,7 +1158,7 @@ export const AppBody = memo(function AppBody({
     case "photos":
       return <PhotosApp />;
     case "terminal":
-      return <Terminal initialCommand={payload?.label} />;
+      return <TerminalApp initialCommand={payload?.label} />;
     case "prefs":
       return <PrefsApp />;
     case "music":

@@ -22,7 +22,8 @@ import { MusicProvider, useMusic } from "./Music";
 import { play } from "./sounds";
 import { ToastProvider, useToast } from "./Toast";
 import Widgets from "./Widgets";
-import { useEffectiveTheme, usePrefs } from "./prefs";
+import { widgetMenu } from "./widgetMenu";
+import { getPrefs, setPrefs, useEffectiveTheme, usePrefs } from "./prefs";
 import { useSelection } from "./useSelection";
 import Window from "./Window";
 import { WindowManagerProvider, useWM, useWMState } from "./WindowManager";
@@ -38,11 +39,9 @@ interface DeskItem {
 const DESKTOP_ICONS: DeskItem[] = [
   { key: "about", kind: "about", label: "About Me.txt" },
   { key: "projects", kind: "projects", label: "Projects" },
-  { key: "cases", kind: "cases", label: "Case Files" },
   { key: "resume", kind: "resume", label: "Résumé.pdf" },
-  { key: "photos", kind: "photos", label: "Photos" },
   { key: "shubhgpt", kind: "shubhgpt", label: "ShubhGPT" },
-  { key: "contact", kind: "contact", label: "Mail Me" },
+  // Case Files, Photos and Mail live in the dock, Finder and Spotlight, to keep the desktop calm.
 ];
 
 /** How long the screen-on effect lasts (matches os-wake-* in os.css). */
@@ -116,7 +115,7 @@ function DesktopIcons({
   onDropOnTrash,
 }: {
   items: DeskItem[];
-  wallpaperMenu: ContextEntry[];
+  wallpaperMenu: ContextMenuState["items"];
   showMenu: (m: ContextMenuState) => void;
   onDropOnTrash: (item: DeskItem) => void;
 }) {
@@ -278,6 +277,20 @@ function Workspace() {
     };
   }, [celebrate, toast, wm]);
 
+  // ⌘⌥S / Ctrl+Alt+S collapses or expands the Finder sidebar (desktop only, not while typing).
+  useEffect(() => {
+    if (mobile) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (!(e.metaKey || e.ctrlKey) || !e.altKey || e.code !== "KeyS") return;
+      const t = e.target as HTMLElement | null;
+      if (t?.closest("input, textarea, [contenteditable='true']")) return;
+      e.preventDefault();
+      setPrefs({ sidebar: !getPrefs().sidebar });
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [mobile]);
+
   // One-time nudge: "Software Update: Shubh 4.0 is available".
   useEffect(() => {
     if (stage !== "desktop") return;
@@ -387,11 +400,14 @@ function Workspace() {
     });
   };
 
-  const wallpaperMenu: ContextEntry[] = [
+  // A function, so the Widgets ▸ check marks update while the menu is open.
+  const wallpaperMenu = (): ContextEntry[] => [
     { label: "New Folder", run: newFolder },
     "sep",
     { label: "Change Desktop Background…", run: () => wm.launch("prefs") },
     { label: "Clean Up", run: () => wm.cleanUp() },
+    "sep",
+    ...widgetMenu(),
     "sep",
     { label: "Open Terminal", run: () => wm.launch("terminal") },
     { label: "Get Info", run: () => wm.launch("info") },
@@ -452,6 +468,7 @@ function Workspace() {
         mobile && focused ? "has-app" : "",
         stage === "waking" ? "is-waking" : "",
         party ? "is-party" : "",
+        !mobile && !prefs.sidebar ? "is-sidebar-collapsed" : "",
       ].join(" ")}
       data-appearance={prefs.appearance}
       data-theme={theme}
@@ -473,7 +490,7 @@ function Workspace() {
           onDropOnTrash={onDropOnTrash}
         />
       )}
-      {!mobile && prefs.widgets && (stage === "desktop" || stage === "waking") && <Widgets />}
+      {!mobile && prefs.widgets && (stage === "desktop" || stage === "waking") && <Widgets showMenu={setMenu} />}
       <main className="os-windows" aria-label="Open windows">
         {wins.map((w) => (
           <Window
