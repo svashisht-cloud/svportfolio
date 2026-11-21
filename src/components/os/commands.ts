@@ -459,6 +459,7 @@ export function run(input: string, ctx: CommandContext): CommandResult {
           { text: `github    ${LINKS.github}`, href: LINKS.github },
           { text: `linkedin  ${LINKS.linkedin}`, href: LINKS.linkedin },
           { text: `youtube   ${LINKS.youtube}`, href: LINKS.youtube },
+          { text: `topmate   ${LINKS.topmate}  (book a call)`, href: LINKS.topmate },
         ],
       };
     case "rm": {

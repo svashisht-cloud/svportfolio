@@ -40,6 +40,7 @@ export const LINK_ITEMS: LaunchItem[] = [
   { key: "github", label: "GitHub", icon: "github", href: LINKS.github },
   { key: "linkedin", label: "LinkedIn", icon: "linkedin", href: LINKS.linkedin },
   { key: "youtube", label: "YouTube", icon: "youtube", href: LINKS.youtube },
+  { key: "topmate", label: "Topmate", icon: "topmate", href: LINKS.topmate },
 ];
 
 /** Where the next window should zoom out of (phone home screen icon), in viewport pixels. */

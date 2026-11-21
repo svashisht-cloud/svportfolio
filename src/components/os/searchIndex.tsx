@@ -173,6 +173,7 @@ export function buildIndex(): Item[] {
     ["GitHub", LINKS.github],
     ["LinkedIn", LINKS.linkedin],
     ["YouTube", LINKS.youtube],
+    ["Book a call on Topmate", LINKS.topmate],
     [`Email ${EMAIL}`, `mailto:${EMAIL}`],
   ];
   for (const [title, href] of links) {

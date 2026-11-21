@@ -17,7 +17,7 @@ import {
 import { experiences, isCurrentRole, projects, type Project } from "@/app/portfolioData";
 import { photos } from "@/app/photos";
 import { impact, profile } from "@/app/profile";
-import { AppIcon, EMAIL, LINKS, describe, prefersReducedMotion, useIsMobile } from "./appMeta";
+import { AppIcon, EMAIL, LINKS, TopmateLogo, describe, prefersReducedMotion, useIsMobile } from "./appMeta";
 import { MusicApp, useMusic } from "./Music";
 import { WALLPAPERS, setPrefs, usePrefs, type ThemeMode } from "./prefs";
 import Terminal from "./Terminal";
@@ -229,6 +229,13 @@ function AboutApp() {
         </ExternalButton>
         <ExternalButton href={LINKS.youtube}>
           <FaYoutube aria-hidden /> YouTube
+        </ExternalButton>
+      </div>
+
+      <h3>Talk to me</h3>
+      <div className="os-actions">
+        <ExternalButton href={LINKS.topmate} primary>
+          <TopmateLogo /> Book a call on Topmate
         </ExternalButton>
       </div>
 
@@ -653,6 +660,9 @@ function ContactApp({ prefill }: { prefill?: string }) {
           <FaPaperPlane aria-hidden /> Send
         </button>
         <span className="os-toolbar-note">Opens in your email app</span>
+        <ExternalButton href={LINKS.topmate}>
+          <TopmateLogo /> Book a call
+        </ExternalButton>
       </div>
       <div className="os-mail-field">
         <span>To:</span>

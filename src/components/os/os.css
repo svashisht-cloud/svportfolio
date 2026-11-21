@@ -450,6 +450,18 @@
   height: 54%;
   filter: drop-shadow(0 1px 1px rgba(0, 0, 0, 0.4));
 }
+/* Brand logos keep their own colours and fill more of the tile. */
+.os-icon svg.os-logo-topmate {
+  width: 70%;
+  height: 70%;
+  filter: none;
+}
+/* Inside buttons the logo sits at text size, like the other icons. */
+.aqua-btn .os-logo-topmate {
+  width: 1.1em;
+  height: 1.1em;
+  flex-shrink: 0;
+}
 .os-icon--img {
   background: #fff;
 }

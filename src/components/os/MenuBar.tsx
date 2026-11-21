@@ -216,6 +216,8 @@ export default function MenuBar({
         { label: "GitHub", run: () => openTab(LINKS.github) },
         { label: "LinkedIn", run: () => openTab(LINKS.linkedin) },
         { label: "YouTube", run: () => openTab(LINKS.youtube) },
+        "sep",
+        { label: "Book a Call (Topmate)", run: () => openTab(LINKS.topmate) },
       ],
     },
     {

@@ -23,7 +23,7 @@ import {
   FaCog,
   FaCheck,
 } from "react-icons/fa";
-import { LINKS } from "./appMeta";
+import { LINKS, TopmateLogo } from "./appMeta";
 import { emit } from "./eggs/bus";
 import { WALLPAPERS, setPrefs, useEffectiveTheme, usePrefs, type Appearance } from "./prefs";
 import { play } from "./sounds";
@@ -177,6 +177,7 @@ export default function PhoneSettings() {
             <Row icon={FaGithub} color="#24292f" label="GitHub" chevron={false} onClick={() => openTab(LINKS.github)} />
             <Row icon={FaLinkedin} color="#0a66c2" label="LinkedIn" chevron={false} onClick={() => openTab(LINKS.linkedin)} />
             <Row icon={FaYoutube} color="#ff0000" label="YouTube" chevron={false} onClick={() => openTab(LINKS.youtube)} />
+            <Row icon={TopmateLogo as IconType} color="#ffffff" label="Book a Call (Topmate)" chevron={false} onClick={() => openTab(LINKS.topmate)} />
           </ul>
           <ul className="os-set-group">
             <Row icon={FaSyncAlt} color="#8e8e93" label="Restart" chevron={false} onClick={() => emit("power", "restart")} />
