@@ -505,12 +505,20 @@ export function MusicApp() {
 }
 
 /** Small now-playing control for the menu bar. Hidden until something has played. */
-export function NowPlaying() {
+/** Menu-bar song pill. Double-clicking it (outside the play/pause button) calls `onOpen`, e.g. to open Music. */
+export function NowPlaying({ onOpen }: { onOpen?: () => void }) {
   const m = useMusic();
   const song = m.songs[m.index];
   if (!song || (!m.playing && m.time === 0)) return null;
   return (
-    <div className="os-nowplaying">
+    <div
+      className="os-nowplaying"
+      title={onOpen ? "Double-click to open Music" : undefined}
+      onDoubleClick={(e) => {
+        if ((e.target as HTMLElement).closest("button")) return;
+        onOpen?.();
+      }}
+    >
       <button type="button" aria-label={m.playing ? "Pause music" : "Play music"} onClick={m.toggle}>
         {m.playing ? <FaPause aria-hidden /> : <FaPlay aria-hidden />}
       </button>

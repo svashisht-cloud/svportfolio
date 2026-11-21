@@ -91,7 +91,7 @@ Home (page.tsx)
          └─ ToastProvider          ← toasts (rendered fixed, outside .os-root)
          └─ Workspace              ← .os-root (+ .is-mobile, .is-party, data-appearance, data-theme); owns the stage
             ├─ wallpaper           ← data-wallpaper from prefs
-            ├─ MenuBar             ← menus, NowPlaying, clock, Spotlight (phones: `mobile` → .os-phonebar status bar)
+            ├─ MenuBar             ← menus, NowPlaying (double-click opens Music), clock, Spotlight (phones: `mobile` → .os-phonebar status bar)
             ├─ HomeScreen          ← phones only
             ├─ FinderSidebar       ← desktop only
             ├─ DesktopIcons        ← desktop only; full-screen layer with useSelection, right-click menu, drag-to-Trash

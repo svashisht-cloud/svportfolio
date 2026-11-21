@@ -360,7 +360,7 @@ export default function MenuBar({
         {menus.map(renderMenu)}
       </nav>
       <div className="os-menubar-right">
-        <NowPlaying />
+        <NowPlaying onOpen={() => wm.launch("music")} />
         {themeButton}
         <button
           type="button"

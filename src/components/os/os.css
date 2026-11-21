@@ -2438,8 +2438,17 @@ html.os-busy .os-root * {
   display: flex;
   align-items: center;
   gap: 6px;
-  margin-right: 12px;
+  margin-right: 6px;
+  padding: 1px 8px 1px 3px;
+  border-radius: 9px;
   font-size: 12px;
+  cursor: pointer;
+  user-select: none;
+  transition: background-color 0.15s ease-out;
+}
+/* Hover shows the pill is clickable (double-click opens Music). */
+.os-nowplaying:hover {
+  background: rgba(0, 0, 0, 0.08);
 }
 .os-nowplaying button {
   display: grid;
@@ -2447,6 +2456,21 @@ html.os-busy .os-root * {
   width: 16px;
   height: 16px;
   padding: 0;
+  border-radius: 50%;
+  cursor: pointer;
+  transition: background-color 0.15s ease-out;
+}
+.os-nowplaying button:hover {
+  background: rgba(0, 0, 0, 0.14);
+}
+.os-nowplaying button:focus-visible {
+  outline: 2px solid var(--focus-ring, #3b82f6);
+}
+.os-root[data-theme="dark"] .os-nowplaying:hover {
+  background: rgba(255, 255, 255, 0.12);
+}
+.os-root[data-theme="dark"] .os-nowplaying button:hover {
+  background: rgba(255, 255, 255, 0.2);
 }
 .os-nowplaying svg {
   width: 9px;
