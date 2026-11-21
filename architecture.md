@@ -31,7 +31,7 @@ src/
       Window.tsx        — window chrome: traffic lights, drag, resize, open/close/minimize animations
       apps.tsx          — AppBody (memoized) + one component per window kind
       appMeta.tsx       — constants, links, describe()/defaultSize()/appName(), AppIcon
-      FinderSidebar.tsx — pinned Finder sidebar + FinderList (Projects / Experience source list)
+      FinderSidebar.tsx — pinned Finder sidebar + FinderList (Projects / Experience source list); collapses to an icon rail (FinderRail) via `prefs.sidebar`
       MenuBar.tsx       — top menu bar with working menus and clock; logo menu: About This Developer (sysinfo), About This Site, Software Update…, System Preferences…, résumé, Restart/Shut Down/Log Out
       Dock.tsx          — magnifying dock, running dots, bounce, minimized-window tiles (desktop only)
       launcher.ts       — shared app/link list (APPS, LINK_ITEMS, DEMO_ITEMS) for the dock and the phone home screen; set/takeLaunchOrigin() for the phone zoom
@@ -56,12 +56,14 @@ src/
       Terminal.tsx      — Terminal window UI (prompt, history, Tab completion)
       commands.ts       — pure command handlers for the Terminal (run, complete, banner, findTarget)
       BootScreen.tsx    — Boot (first visit per tab) and Login (after Log Out)
-      ContextMenu.tsx   — right-click menu (fixed position, clamped to the viewport)
+      ContextMenu.tsx   — right-click menu (fixed `.os-context-wrap`, clamped to the viewport); entries can be `checked` (menuitemcheckbox, stays open on click) or have a `submenu` (opens on hover/focus/→, ← closes, flips left near the edge); `items` may be a function, re-run on prefs changes so checks stay live
+      widgetList.ts     — WIDGETS (id + name, in stacking order), WidgetId, DEFAULT_WIDGETS (clock, weather, note)
+      widgetMenu.ts     — widgetMenu() ("Widgets ▸" checkbox submenu + Hide All/Show Widgets) and setWidgetShown() (ticking a widget while all are hidden shows only that one; Show Widgets brings back the previous set)
       Music.tsx         — MusicProvider (single <audio> + lazy Web Audio AnalyserNode), MusicApp window (turntable stage, canvas Visualizer, EqBars), NowPlaying menu-bar item
       prefs.ts          — wallpaper + appearance store (useSyncExternalStore, localStorage)
       useSelection.ts   — Finder-style selection hook (click, Cmd/Ctrl, Shift, rubber band, keys)
       useTilt.ts        — pointer-follow tilt + shine handlers (sets --rx/--ry/--sx/--sy)
-      Widgets.tsx       — draggable desktop widgets (clock, sticky note, now playing, Dallas weather, top tech); weather comes from Open-Meteo (no key), refreshes every 30 min and is cached in `sessionStorage["sv-os-weather"]`; double-clicking Now Playing launches Music (`card()` takes an optional `onDoubleClick`)
+      Widgets.tsx       — draggable desktop widgets (clock, sticky note, now playing, Dallas weather, top tech, tile puzzle); only those in `prefs.shownWidgets` render; unmoved ones stack without gaps in the right-hand column (`SLOT_H` per widget, measured heights + gap; the tile has its own column); right-click a widget → Remove “…” Widget + the Widgets ▸ submenu; fade/scale in on show; weather comes from Open-Meteo (no key), refreshes every 30 min and is cached in `sessionStorage["sv-os-weather"]`; double-clicking Now Playing launches Music (`card()` takes an optional `onDoubleClick`)
       Calendar.tsx      — month calendar from the menu-bar clock; milestones derived from data
       Toast.tsx         — ToastProvider / useToast() notification bubbles; toast(text, icon?, { onClick?, ms? }) — with onClick the toast is a button
       sounds.ts         — Web Audio synthesised UI sounds; play(name) is a no-op unless prefs.sound
@@ -198,7 +200,7 @@ All motion-heavy eggs are skipped under `prefers-reduced-motion`.
 Used by `DesktopIcons` and the Projects folder. Click selects; Cmd/Ctrl+click toggles; Shift+click selects a range; dragging on empty space draws a rubber band (`.os-band`, fixed-position); clicking empty space clears. Double-click, Enter or Cmd/Ctrl+O opens **all** selected items; Cmd/Ctrl+A selects all; arrow keys move within the folder grid. On touch, a tap opens immediately. A plain click on one item of a multi-selection narrows it after 450ms unless a double-click follows.
 
 ### Right-click menu
-On the wallpaper: New Folder, Change Desktop Background…, Clean Up (`wm.cleanUp()`), Open Terminal, Get Info. On a desktop icon: Open (N Items), Get Info. Inside windows the browser's own menu is kept.
+On the wallpaper: New Folder, Change Desktop Background…, Clean Up (`wm.cleanUp()`), Widgets ▸ (a checkbox per widget), Hide All Widgets / Show Widgets, Open Terminal, Get Info. On a widget: Remove “Name” Widget, Widgets ▸, Hide All Widgets. On a desktop icon: Open (N Items), Get Info. Inside windows the browser's own menu is kept.
 
 ### Window chrome (`Window.tsx`)
 - Drag by title bar (pointer capture), clamped to the viewport; resize from the bottom-right grip (min 300×200). While dragging, `html.os-dragging` disables iframe pointer events.
@@ -212,6 +214,12 @@ On the wallpaper: New Folder, Change Desktop Background…, Clean Up (`wm.cleanU
 
 ### Dock (`Dock.tsx`)
 Projects, About, ShubhGPT, Experience, Case Files, one item per project with a `demoComponent`, Résumé, Photos, Music, Terminal, Mail | GitHub, LinkedIn, YouTube | minimized windows | Trash. Magnification uses item centres measured on pointer-enter (mouse only). Items bounce on first launch; a triangle marks open windows.
+
+### Desktop icons (`Desktop.tsx` `DESKTOP_ICONS`)
+Kept to four to keep the desktop calm: About Me.txt, Projects, Résumé.pdf, ShubhGPT (plus any New Folders). Case Files, Photos and Mail are in the dock, Finder Favorites and Spotlight.
+
+### Sidebar collapse
+`prefs.sidebar` (default true). Collapsed (`.os-sidebar.is-collapsed`, 40px wide; `RAIL_W` 52 in appMeta includes the 12px inset) shows `FinderRail`: Favorites as icon-only buttons. Toggles: the sidebar glyph button in its title bar, View → Hide/Show Sidebar, ⌘⌥S / Ctrl+Alt+S (Workspace keydown, ignored in text fields). `sidebarWidth()` (appMeta) feeds `workArea()` and the widget default positions; open windows keep their place. Width animates (none under reduced motion).
 
 ### FinderList (`FinderSidebar.tsx`)
 Search field (filters projects and work projects by name, tech stack, description), Favorites (incl. Case Files), Projects (★ = featured), Experience (role groups with disclosure triangles; each company's newest role expanded). The item for the focused window is highlighted.
@@ -230,6 +238,7 @@ Phones get an iOS-style shell instead of a squeezed desktop. `useIsMobile()` liv
 - **Apps**: full screen between the status bar and home bar. The title bar becomes a nav bar (`.os-navbar`) with `‹ <window below>` (closes this window) or `‹ Home` (`wm.home()`). A 14px left-edge strip (`.os-edge-swipe`) does the same on a right swipe. The back target is computed in `Workspace` from the z-order of visible windows.
 - **Motion**: tapping a home icon records its centre (`setLaunchOrigin`). `launch()`/`restore()` store it as `win.origin`, and the window zooms out of and back into that icon (`os-app-zoom-in/out`, `.has-origin`). Windows opened from inside an app slide in from the right (`os-push-in`) and slide out when closed.
 - **Home bar** (`.os-homebar`, `HomeIndicator`): dragging it up pulls the front app with the finger (inline transform: it rises, shrinks and rounds off). Windows under it are hidden, and the home screen fades and settles in behind (`.is-swiping-home`, `--home-p`). On release past 110px, or a fast flick, the app flies into its icon (Web Animations, using `data-origin` on the window) and then `wm.home({ instant: true })` runs. Otherwise it springs back. A tap, `‹ Home` and the edge swipe use `goHome()`: the normal shrink plus the icons easing in (`.is-homing`). Only gesture-touched inline styles are reset afterwards, because React owns `display` and `transform-origin`.
+- **Terminal is desktop-only** (it needs a keyboard): missing from the home grid, phone Search (no Terminal app, no Terminal commands group) and Finder Favorites. If opened anyway (deep link, adventure), `TerminalApp` in apps.tsx shows a "needs a keyboard" card with an Ask ShubhGPT button.
 - **Virtual PC (Windows XP Clone) is desktop-only** (`RETRO.virtualpc.desktopOnly`). On phones it's missing from the home grid, the SV menu ("Restart in Windows…"), Spotlight and the project's "Run it here" button. If it's opened anyway (Terminal, deep link), `RetroApp` shows a "needs a bigger screen" card with an Open in new tab link.
 - **No surprise zooming on phones:**
   - Text boxes are at least 16px (`.is-mobile input/textarea/select`), because iPhone Safari zooms into smaller focused fields and stays zoomed, e.g. after returning from a link in another tab.
@@ -347,7 +356,7 @@ The current role is the one whose `dateRange` contains "Present" (`isCurrentRole
 - **Desktop UI:** plain CSS in `src/components/os/os.css` (Aqua-inspired, original drawing; no Apple artwork or fonts are shipped — the font stack prefers Lucida Grande if the visitor has it). Glossy icons are CSS gradient tiles with react-icons glyphs, or the project screenshot.
 - **Retro cursors:** `public/os/cursor-arrow.svg` (default), `cursor-hand.svg` (links/buttons) and `cursor-wait.svg` (while a window opens), set in `os.css`.
 - **Wallpapers / appearance:** `.os-wallpaper[data-wallpaper=…]` and `.os-root[data-appearance="graphite"]` (overrides `--hilite-*`, traffic lights, primary buttons).
-- **Per-visitor storage (all wrapped in try/catch):** `localStorage["sv-os-prefs"]` (wallpaper, appearance, theme, sound, widgets), `localStorage["sv-os-widgets"]` (widget positions), `localStorage["sv-snake-best"]`, `localStorage["sv-os-cases"]` (solved case files), `localStorage["sv-os-update-seen"]` (Software Update nudge shown), `localStorage["sv-os-achievements"]`, `localStorage["sv-os-roles-seen"]`, `localStorage["sv-os-bugs"]` (`{ on, found[] }`), `sessionStorage["sv-os-booted"]`.
+- **Per-visitor storage (all wrapped in try/catch):** `localStorage["sv-os-prefs"]` (wallpaper, appearance, theme, sound, widgets (master switch), shownWidgets, sidebar), `localStorage["sv-os-widgets"]` (widget positions), `localStorage["sv-snake-best"]`, `localStorage["sv-os-cases"]` (solved case files), `localStorage["sv-os-update-seen"]` (Software Update nudge shown), `localStorage["sv-os-achievements"]`, `localStorage["sv-os-roles-seen"]`, `localStorage["sv-os-bugs"]` (`{ on, found[] }`), `sessionStorage["sv-os-booted"]`.
 - **Music in narrow windows:** `.os-music` is a size container; under 540px the LCD takes its own full-width row, under 380px the volume icons and the spectrum hide.
 - **New-window styles** live in the last section of `os.css` ("Recruiter fast path, Case Files, system windows and Spotlight"), each with its dark-theme override next to it. `.os-todo` marks visible `{{TODO}}` facts. Desktop icons wrap into a second column on short screens (`flex-wrap: wrap-reverse`).
 - **Demos** keep their dark token-based look via `.os-demo`; `os.css` overrides their fixed `vmin` sizes to fit inside windows.

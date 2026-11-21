@@ -196,6 +196,11 @@ export default function MenuBar({
         { label: "Console", run: () => wm.launch("console") },
         "sep",
         {
+          label: prefs.sidebar ? "Hide Sidebar" : "Show Sidebar",
+          hint: "⌥⌘S",
+          run: () => setPrefs({ sidebar: !prefs.sidebar }),
+        },
+        {
           label: prefs.widgets ? "Hide Widgets" : "Show Widgets",
           run: () => setPrefs({ widgets: !prefs.widgets }),
         },

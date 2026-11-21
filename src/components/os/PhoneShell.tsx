@@ -22,8 +22,8 @@ const TRAY = TRAY_KEYS.map((k) => APPS.find((a) => a.key === k)!);
 
 /** Every app, in a 4-column grid (the tray's four too). */
 const GRID: LaunchItem[] = [
-  // Virtual PC (the XP clone) is a whole desktop and is left off phones.
-  ...APPS.filter((a) => !a.key.startsWith("demo:") && a.key !== "virtualpc"),
+  // Virtual PC (the XP clone) is a whole desktop, and Terminal needs a keyboard: both are left off phones.
+  ...APPS.filter((a) => !a.key.startsWith("demo:") && a.key !== "virtualpc" && a.key !== "terminal"),
   { key: "education", label: "Education", kind: "education" },
   ...DEMO_ITEMS,
   { key: "achievements", label: "Trophies", kind: "achievements" },

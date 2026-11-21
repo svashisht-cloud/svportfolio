@@ -524,6 +524,80 @@
   background: transparent;
   border-bottom: none;
 }
+.os-sidebar {
+  transition: width 0.2s ease-out;
+}
+/* Collapsed: a 40px rail (RAIL_W 52 in appMeta = 12px inset + 40px). */
+.os-sidebar.is-collapsed {
+  width: 40px;
+}
+.os-sidebar-toggle {
+  position: absolute;
+  right: 6px;
+  top: 50%;
+  translate: 0 -50%;
+  display: grid;
+  place-items: center;
+  width: 24px;
+  height: 18px;
+  border-radius: 4px;
+  color: #4a4a4a;
+}
+.os-sidebar-toggle:hover {
+  background: rgba(0, 0, 0, 0.1);
+}
+.os-sidebar-toggle:focus-visible {
+  outline: 2px solid var(--focus-ring, #3b82f6);
+}
+.os-sidebar.is-collapsed .os-sidebar-toggle {
+  right: 8px;
+}
+.os-rail {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  padding: 6px 0;
+}
+.os-rail ul {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  display: grid;
+  gap: 4px;
+  justify-items: center;
+}
+.os-rail-item {
+  display: grid;
+  place-items: center;
+  width: 32px;
+  height: 32px;
+  border-radius: 7px;
+}
+.os-rail-item .os-icon {
+  width: 24px;
+  height: 24px;
+}
+.os-rail-item:hover {
+  background: rgba(255, 255, 255, 0.45);
+}
+.os-rail-item.is-active {
+  background: var(--hilite-2);
+}
+.os-rail-item:focus-visible {
+  outline: 2px solid var(--focus-ring, #3b82f6);
+}
+.os-root[data-theme="dark"] .os-sidebar-toggle {
+  color: #d6d6d6;
+}
+.os-root[data-theme="dark"] .os-sidebar-toggle:hover,
+.os-root[data-theme="dark"] .os-rail-item:hover {
+  background: rgba(255, 255, 255, 0.12);
+}
+@media (prefers-reduced-motion: reduce) {
+  .os-sidebar {
+    transition: none;
+  }
+}
 .os-finder {
   display: flex;
   flex-direction: column;
@@ -1672,13 +1746,36 @@ html.os-busy .os-root * {
 }
 
 /* ---------- Context menu ---------- */
-.os-context {
+.os-context-wrap {
   position: fixed;
   top: 0;
   left: 0;
   z-index: 15000;
+}
+.os-context {
+  position: relative;
+  top: auto;
+  left: auto;
   border-top: 1px solid #9c9c9c;
   border-radius: 6px;
+}
+.os-context-parent {
+  position: relative;
+}
+/* Submenus sit beside their item (or to the left near the screen edge). */
+.os-context-sub {
+  position: absolute;
+  top: -5px;
+  left: calc(100% - 2px);
+  min-width: 180px;
+}
+.os-context-sub.is-left {
+  left: auto;
+  right: calc(100% - 2px);
+}
+.os-menu-arrow {
+  margin-left: 18px;
+  font-size: 10px;
 }
 
 /* ---------- Boot + login ---------- */
@@ -3089,6 +3186,21 @@ html.os-busy .os-root * {
 }
 .os-widget:hover {
   transform: translateY(-2px);
+}
+/* Fades in when shown or added (uses \`scale\`, so it doesn't fight the note's rotate). */
+.os-widget {
+  animation: os-widget-in 0.25s ease-out;
+}
+@keyframes os-widget-in {
+  from {
+    opacity: 0;
+    scale: 0.92;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .os-widget {
+    animation: none;
+  }
 }
 .os-widget[data-dragging] {
   transform: scale(1.04);

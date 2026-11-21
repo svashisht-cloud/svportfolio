@@ -1,6 +1,7 @@
 "use client";
 import Image from "next/image";
 import { useSyncExternalStore } from "react";
+import { getPrefs } from "./prefs";
 import type { IconType } from "react-icons";
 import {
   FaBriefcase,
@@ -40,6 +41,13 @@ import type { AppKind, AppPayload } from "./types";
 
 export const MENUBAR_H = 22;
 export const SIDEBAR_W = 248;
+/** Width of the collapsed sidebar (an icon rail). */
+export const RAIL_W = 52;
+
+/** The sidebar's current width on the desktop: full, or the rail when collapsed. */
+export function sidebarWidth() {
+  return getPrefs().sidebar ? SIDEBAR_W : RAIL_W;
+}
 export const DOCK_H = 84;
 /** Phones: the iOS-style status bar and home-indicator strip (see PhoneShell.tsx). */
 export const STATUSBAR_H = 36;

@@ -990,6 +990,24 @@ function InfoApp({ payload }: { payload?: AppPayload }) {
   );
 }
 
+/** Terminal on a laptop; on phones (deep link, adventure, sudo) a card, since it needs a keyboard. */
+function TerminalApp({ initialCommand }: { initialCommand?: string }) {
+  const wm = useWM();
+  const mobile = useIsMobile();
+  if (!mobile) return <Terminal initialCommand={initialCommand} />;
+  return (
+    <div className="os-center">
+      <p>
+        <strong>Terminal</strong> needs a keyboard, so try it on a laptop.
+      </p>
+      <p className="os-meta">Meanwhile, ShubhGPT can answer the same questions.</p>
+      <button type="button" className="aqua-btn aqua-btn--primary" onClick={() => wm.launch("shubhgpt")}>
+        Ask ShubhGPT
+      </button>
+    </div>
+  );
+}
+
 function TrashApp() {
   const full = useTrashFull();
   const toast = useToast();
@@ -1130,7 +1148,7 @@ export const AppBody = memo(function AppBody({
     case "photos":
       return <PhotosApp />;
     case "terminal":
-      return <Terminal initialCommand={payload?.label} />;
+      return <TerminalApp initialCommand={payload?.label} />;
     case "prefs":
       return <PrefsApp />;
     case "music":

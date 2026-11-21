@@ -5,7 +5,7 @@ import {
   DOCK_H,
   HOMEBAR_H,
   MENUBAR_H,
-  SIDEBAR_W,
+  sidebarWidth,
   STATUSBAR_H,
   defaultSize,
   describe,
@@ -87,7 +87,7 @@ const ActionsCtx = createContext<WMActions | null>(null);
 /** Area windows may occupy: right of the sidebar, between the menu bar and the dock. */
 export function workArea(): Rect {
   const mobile = isMobileNow();
-  const left = mobile ? 0 : SIDEBAR_W + 24;
+  const left = mobile ? 0 : sidebarWidth() + 24;
   const top = mobile ? STATUSBAR_H : MENUBAR_H;
   const w = window.innerWidth - left;
   const h = window.innerHeight - top - (mobile ? HOMEBAR_H : DOCK_H);

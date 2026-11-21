@@ -90,9 +90,10 @@ function resumeLines(): { text: string; context: string }[] {
 
 export function buildIndex(): Item[] {
   const items: Item[] = [];
+  const mobile = isMobileNow();
   for (const app of APPS) {
-    // The XP clone (Virtual PC) needs a desktop-sized screen.
-    if (app.kind === "virtualpc" && isMobileNow()) continue;
+    // The XP clone (Virtual PC) needs a desktop-sized screen, and Terminal needs a keyboard.
+    if ((app.kind === "virtualpc" || app.kind === "terminal") && mobile) continue;
     items.push({
       id: `app:${app.name}`,
       group: "Applications",
@@ -155,7 +156,8 @@ export function buildIndex(): Item[] {
       action: { type: "launch", kind: "resume" },
     });
   });
-  for (const [usage, about] of COMMANDS) {
+  // Terminal commands open the Terminal, which phones don't get.
+  for (const [usage, about] of mobile ? [] : COMMANDS) {
     if (usage.includes("<")) continue;
     const cmd = usage.includes("[") ? usage.split(/[\s[]/)[0] : usage.split(" / ")[0];
     if (SKIP_COMMANDS.includes(cmd)) continue;
